@@ -6,6 +6,7 @@ from torch.utils.data import DataLoader
 from other.log import init_log
 import other.path as path
 import time
+import math
 
 class VAE_Kdd99_trainer():
     def __init__(self, net, trainloader: DataLoader, testloader: DataLoader, epochs: int = 150, lr: float = 0.001,
@@ -23,11 +24,12 @@ class VAE_Kdd99_trainer():
         self.train_time = 0.0
         self.train_loss = 0.0
         self.train_mu = 0.0
-        self.train_logvar = 0.0
+        self.train_std = 0.0
+
         self.test_time = 0.0
         self.test_loss = 0.0
         self.test_mu = 0.0
-        self.test_logvar = 0.0
+        self.test_std = 0.0
 
     def train(self):
         logger = init_log(path.Log_Path)
@@ -43,7 +45,7 @@ class VAE_Kdd99_trainer():
             # 训练过程
             epoch_loss = 0.0
             epoch_mu = 0.0
-            epoch_logvar = 0.0
+            epoch_std = 0.0
             count_batch = 0
             epoch_start_time = time.time()
             for item in self.trainloader:
@@ -59,8 +61,8 @@ class VAE_Kdd99_trainer():
 
                 # 一次迭代中所有数据的误差loss，所有数据的均值mu，所有数据的方差logvar
                 epoch_loss += loss.item()
-                epoch_mu += mu.sum().item()
-                epoch_logvar += logvar.sum().item()
+                epoch_mu += mu.mean().item()
+                epoch_std += torch.sqrt(logvar.exp()).mean()
                 count_batch += 1
 
             # 显示学习率的变化
@@ -69,20 +71,21 @@ class VAE_Kdd99_trainer():
 
             epoch_train_time = time.time() - epoch_start_time
             # 每个batch(多个单个样本)的平均误差；epoch_loss就是一次迭代所有数据的总误差
-            logger.info("\n Epoch{}/{}\t Time:{:.3f}\t Loss of each batch:{:.8f}\t mu of each batch:{:.5f}\t logvar of each batch:{:.5f}".
-                        format(epoch+1, self.epochs, epoch_train_time, epoch_loss / count_batch, epoch_mu / count_batch, epoch_logvar / count_batch))
+            logger.info("\n Epoch{}/{}\t Time:{:.3f}\t Loss of each batch:{:.8f}\t mu of each batch:{:.5f}\t std of each batch:{:.5f}".
+                        format(epoch+1, self.epochs, epoch_train_time, epoch_loss / count_batch, epoch_mu / count_batch, epoch_std / count_batch))
 
             self.train_loss += epoch_loss
             self.train_mu += epoch_mu
-            self.train_logvar += epoch_logvar
+            self.train_std += epoch_std
 
         self.train_time = time.time() - start_time
         self.train_loss /= (self.epochs * len(self.trainloader.dataset))
         self.train_mu /= (self.epochs * len(self.trainloader.dataset))
-        self.train_logvar /= (self.epochs * len(self.trainloader.dataset))
+        self.train_std /= (self.epochs * len(self.trainloader.dataset))
+
         # all_loss就相当于所有迭代所有数据的总误差
-        logger.info("Training time:{:.3f}\t Training loss:{:.8f}\t Normal mu:{:.5f}\t Normal logvar:{:.5f}".
-                    format(self.train_time, self.train_loss, self.train_mu, self.train_logvar))
+        logger.info("Training time:{:.3f}\t Training loss:{:.8f}\t Normal mu:{:.5f}\t Normal std:{:.5f}".
+                    format(self.train_time, self.train_loss, self.train_mu, self.train_std))
         logger.info("Finishing training VAE with Kdd99...")
 
         return self.net
@@ -92,13 +95,24 @@ class VAE_Kdd99_trainer():
         logger = init_log(path.Log_Path)
         logger.info("Starting testing VAE with kdd99...")
         start_time = time.time()
+        upbound = self.train_mu + 3 * self.train_std
+        lowbound = self.train_mu - 3 * self.train_std
         self.net.eval()
         with torch.no_grad():
             for item in self.testloader:
-                data, _ = item
+                data, label = item
                 # 只是一个batch的损失，mu，logvar
+                # 如果batch为1，则以下变量对应一个数据的loss、mu、logvar
                 recon_batch, mu, logvar = self.net(data)
                 test_loss = loss_function(recon_batch, data, mu, logvar)
+                self.test_mu = mu.mean()
+                self.test_std = torch.sqrt(logvar.exp()).mean()
+
+                if (self.test_mu > lowbound) and (self.test_mu < upbound):
+                    logger.info(data + label + torch.tensor(0))
+                else:
+                    logger.info(data + label + torch.tensor(1))
+        """           
                 # 累计所有batch的loss，mu, logvar
                 self.test_loss += test_loss.item()
                 self.test_mu += mu.sum().item()
@@ -111,13 +125,15 @@ class VAE_Kdd99_trainer():
 
         logger.info("Test time:{:.3f}\t Test loss:{:.8f}\t Test mu:{:.5f}\t Test logvar:{:.5f}".
                     format(self.test_time, self.test_loss, self.test_mu, self.test_logvar))
-        logger.info("Finishing testing VAE with Kdd99...")
+        """
+        self.test_time = time.time() - start_time
 
+        logger.info("Finishing testing VAE with Kdd99...")
 
 # Reconstruction + KL divergence losses summed over all elements and batch
 def loss_function(recon_x, x, mu, logvar):
     # 累加重构误差
-    loss_rec = torch.nn.MSELoss(reduction='sum')
+    loss_rec = torch.nn.MSELoss()
     BCE = loss_rec(recon_x, x)
     # BCE = F.binary_cross_entropy(recon_x, x.view(-1, 15), reduction='sum')
     # see Appendix B from VAE paper:
