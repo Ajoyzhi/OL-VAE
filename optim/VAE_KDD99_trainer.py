@@ -10,7 +10,7 @@ import time
 
 class VAE_Kdd99_trainer():
     def __init__(self, net, trainloader: DataLoader, testloader: DataLoader, epochs: int = 150, lr: float = 0.001,
-                 lr_milestones: tuple = (), weight_decay: float = 1e-6):
+                 lr_milestones: tuple = (), weight_decay: float = 1e-6, thr: float = 0.01):
         self.net = net
         self.trainloader = trainloader
         self.testloader = testloader
@@ -20,17 +20,19 @@ class VAE_Kdd99_trainer():
         self.milestones = lr_milestones
         # L2正则化的系数
         self.weight_decay = weight_decay
-
+        # 训练时，平均参数
         self.train_time = 0.0
         self.train_loss = 0.0
         # 15维向量的均值
         self.train_mu = 0.0
         self.train_std = 0.0
-
+        # 测试时，每个数据的参数
         self.test_time = 0.0
         self.test_loss = 0.0
         self.test_mu = 0.0
         self.test_std = 0.0
+
+        self.thr = thr
 
     def train(self):
         logger = init_log(path.Log_Path)
@@ -93,11 +95,17 @@ class VAE_Kdd99_trainer():
 
 
     def test(self):
+        prediction = []
+        index_list= []
+        label_list = []
+        index_label_prediction = None
+
+        index_label = None
         logger = init_log(path.Log_Path)
         logger.info("Starting testing VAE with kdd99...")
         start_time = time.time()
-        #upbound = self.train_mu + 3 * self.train_std
-        #lowbound = self.train_mu - 3 * self.train_std
+        upbound = self.train_mu + self.thr * self.train_std
+        lowbound = self.train_mu - self.thr * self.train_std
         self.net.eval()
         with torch.no_grad():
             for item in self.testloader:
@@ -108,30 +116,24 @@ class VAE_Kdd99_trainer():
                 test_loss = loss_function(recon_batch, data, mu, logvar)
                 self.test_mu = mu.mean()
                 self.test_std = torch.sqrt(logvar.exp()).mean()
-                logger.info("index:{:.0f}\t data:{}\t label:{}\t mu:{:.5f}\t std:{:.5f}".format(int(index), data, label, self.test_mu, self.test_std))
+                self.test_loss = test_loss.mean()
 
-                """if (self.test_mu >= lowbound) and (self.test_mu <= upbound):
-                    logger.info(data + label)
-                    logger.info("normal data\n")
+                index_list.append(index)
+                label_list.append(label)
+                # 只考虑均值和方差
+                if (self.test_mu >= lowbound) and (self.test_mu <= upbound):
+                    prediction.append(0)
                 else:
-                    logger.info(data + label)
-                    logger.info("abnormal data\n")"""
-        """           
-                # 累计所有batch的loss，mu, logvar
-                self.test_loss += test_loss.item()
-                self.test_mu += mu.sum().item()
-                self.test_logvar += logvar.sum().item()
+                    prediction.append(1)
+                # 打印label和预测结果
+                # logger.info("index:{:.0f}\t label:{}\t prediction:{}\t mu:{:.5f}\t std:{:.5f}\t loss;{:.5f}".
+                #            format(int(index), label, pred_label, self.test_mu, self.test_std, self.test_loss))
+                # 将index，label，predict_label封装在一个list中
+            index_label_prediction = list(zip(index_list, label_list, prediction))
+            logger.info(index_label_prediction)
 
         self.test_time = time.time() - start_time
-        self.test_loss /= len(self.testloader)
-        self.test_mu /= len(self.testloader)
-        self.train_logvar /= len(self.testloader)
-
-        logger.info("Test time:{:.3f}\t Test loss:{:.8f}\t Test mu:{:.5f}\t Test logvar:{:.5f}".
-                    format(self.test_time, self.test_loss, self.test_mu, self.test_logvar))
-        """
-        self.test_time = time.time() - start_time
-
+        logger.info("Test time:{:.3f}".format(self.test_time))
         logger.info("Finishing testing VAE with Kdd99...")
 
 # Reconstruction + KL divergence losses summed over all elements and batch
