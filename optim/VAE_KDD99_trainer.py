@@ -1,10 +1,10 @@
 import torch
 import torch.optim as optim
-from torch.nn import functional as F
 
 from torch.utils.data import DataLoader
 from other.log import init_log
 import other.path as path
+from performance.performance import performance
 import time
 
 
@@ -98,9 +98,7 @@ class VAE_Kdd99_trainer():
         prediction = []
         index_list= []
         label_list = []
-        index_label_prediction = None
 
-        index_label = None
         logger = init_log(path.Log_Path)
         logger.info("Starting testing VAE with kdd99...")
         start_time = time.time()
@@ -132,8 +130,14 @@ class VAE_Kdd99_trainer():
             index_label_prediction = list(zip(index_list, label_list, prediction))
             logger.info(index_label_prediction)
 
+        # 输出性能
+        per_obj = performance(index_label_prediction)
+        per_obj.get_base_metrics()
+        per_obj.AUC_ROC()
+
         self.test_time = time.time() - start_time
-        logger.info("Test time:{:.3f}".format(self.test_time))
+        logger.info("Test time:{:.3f}\t accurancy:{:.5f}\t precision:{:.5f}\t recall:{:.5f}\t f1score:{:.5f}\t AUC:{:.5f}\t FPR:{:.5f}\t TPR:{:.5f}".
+                    format(self.test_time, per_obj.accurancy, per_obj.precision, per_obj.recall, per_obj.f1score, per_obj.AUC, per_obj.FPR, per_obj.TPR))
         logger.info("Finishing testing VAE with Kdd99...")
 
 # Reconstruction + KL divergence losses summed over all elements and batch
