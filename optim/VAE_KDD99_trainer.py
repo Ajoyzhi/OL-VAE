@@ -6,7 +6,7 @@ from torch.utils.data import DataLoader
 from other.log import init_log
 import other.path as path
 import time
-import math
+
 
 class VAE_Kdd99_trainer():
     def __init__(self, net, trainloader: DataLoader, testloader: DataLoader, epochs: int = 150, lr: float = 0.001,
@@ -23,6 +23,7 @@ class VAE_Kdd99_trainer():
 
         self.train_time = 0.0
         self.train_loss = 0.0
+        # 15维向量的均值
         self.train_mu = 0.0
         self.train_std = 0.0
 
@@ -49,7 +50,7 @@ class VAE_Kdd99_trainer():
             count_batch = 0
             epoch_start_time = time.time()
             for item in self.trainloader:
-                data, _ = item
+                data, _, _ = item
                 optimizer.zero_grad()
                 # 执行的是forward函数 mu一个15维的向量；logvar为15维的向量
                 recon_batch, mu, logvar = self.net(data)
@@ -95,23 +96,26 @@ class VAE_Kdd99_trainer():
         logger = init_log(path.Log_Path)
         logger.info("Starting testing VAE with kdd99...")
         start_time = time.time()
-        upbound = self.train_mu + 3 * self.train_std
-        lowbound = self.train_mu - 3 * self.train_std
+        #upbound = self.train_mu + 3 * self.train_std
+        #lowbound = self.train_mu - 3 * self.train_std
         self.net.eval()
         with torch.no_grad():
             for item in self.testloader:
-                data, label = item
+                data, label, index = item
                 # 只是一个batch的损失，mu，logvar
                 # 如果batch为1，则以下变量对应一个数据的loss、mu、logvar
                 recon_batch, mu, logvar = self.net(data)
                 test_loss = loss_function(recon_batch, data, mu, logvar)
                 self.test_mu = mu.mean()
                 self.test_std = torch.sqrt(logvar.exp()).mean()
+                logger.info("index:{:.0f}\t data:{}\t label:{}\t mu:{:.5f}\t std:{:.5f}".format(int(index), data, label, self.test_mu, self.test_std))
 
-                if (self.test_mu > lowbound) and (self.test_mu < upbound):
-                    logger.info(data + label + torch.tensor(0))
+                """if (self.test_mu >= lowbound) and (self.test_mu <= upbound):
+                    logger.info(data + label)
+                    logger.info("normal data\n")
                 else:
-                    logger.info(data + label + torch.tensor(1))
+                    logger.info(data + label)
+                    logger.info("abnormal data\n")"""
         """           
                 # 累计所有batch的loss，mu, logvar
                 self.test_loss += test_loss.item()
