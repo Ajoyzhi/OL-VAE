@@ -8,7 +8,7 @@ def init_log(filepath):
     # 为你的log起个名字
     logger = logging.getLogger(__name__)
     # 设置输出等级，debug<info<warning等
-    logger.setLevel(level=logging.DEBUG)
+    logger.setLevel(level=logging.INFO)
 
     # 将log输出到文件中
     handler = logging.FileHandler(filepath + real_time + ".log")
@@ -19,10 +19,10 @@ def init_log(filepath):
     # 装载格式
     handler.setFormatter(formatter)
     # 将log输出到控制台
-    console = logging.StreamHandler()
+    #console = logging.StreamHandler()
     # console.setLevel(logging.DEBUG)
 
     # 将整个两个添加到进logger中
     logger.addHandler(handler)
-    logger.addHandler(console)
+    #logger.addHandler(console)
     return logger
