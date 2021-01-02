@@ -11,7 +11,7 @@ class Kdd99Dataset(Dataset):
         # 1. Read one data from file (e.g. using numpy.fromfile, PIL.Image.open).
         # 2. Preprocess the data (e.g. torchvision.Transform).
         # 3. Return a data pair (e.g. image and label).
-        return self.data[index], self.label[index]
+        return self.data[index], self.label[index], index
 
     def __len__(self):
         return len(self.data)
