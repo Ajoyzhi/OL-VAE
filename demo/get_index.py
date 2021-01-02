@@ -13,3 +13,7 @@ def handle_protocol(protocal):
 
 print(handle_protocol('tcp'))
 
+# 测试%d占位符
+a = 1.0
+print("The data is %s."%a)
+
