@@ -20,9 +20,13 @@ class OL_VAE(nn.Module):
 
     # 从encoder部分中计算出mu和std
     def get_mu_std(self):
-        # 加入对于的表达式
-        mu = 0.0
-        std = 0.0
+        # 加入对应的表达式
+        zero = torch.zeros((15 * 1))
+        h0 = self.encode(zero)
+        dh0 = self.encode(zero).grad
+        pi = 3.1415926
+        mu = dh0 / (2 * pi * h0.pow(3))
+        std = 1 / (torch.sqrt(2 * pi) * h0)
         return mu, std
 
     def reparameterize(self, mu, std):
