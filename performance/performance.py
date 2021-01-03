@@ -1,5 +1,6 @@
 import numpy as np
 from sklearn import metrics
+import matplotlib.pyplot as plt
 
 class performance():
     def __init__(self, label_prediction: list):
@@ -10,16 +11,13 @@ class performance():
         self.precision = 0.0
         self.recall = 0.0
         self.f1score = 0.0
-
         self.AUC = 0.0
-        self.FPR = 0.0
-        self.TPR = 0.0
+
 
     def get_base_metrics(self):
         # 由于是二分类问题，所以只区分正常和异常数据
-        temp = [1 for i in self.label if i != 0]
-        self.label = temp
-
+        self.label = [1 if i != 0 else i for i in self.label ]
+        # 以 label= 1为正例
         self.accurancy = metrics.accuracy_score(self.label, self.prediction)
         self.precision = metrics.precision_score(self.label, self.prediction)
         self.recall = metrics.recall_score(self.label, self.prediction)
@@ -30,7 +28,15 @@ class performance():
         prediction_array = np.array(self.prediction)
         self.AUC = metrics.roc_auc_score(label_array, prediction_array)
         # ROC曲线
-        self.FPR, self.TPR, threshold = metrics.roc_curve(label_array, prediction_array, pos_label=2)
+        FPR, TPR, threshold = metrics.roc_curve(label_array, prediction_array)
+
+        # 画ROC曲线
+        plt.xlabel('FPR')
+        plt.ylabel('TPR')
+        plt.xlim((0,1))
+        plt.ylim((0,1))
+        plt.plot(FPR, TPR, color='green',linewidth=3.0, linestyle='-')
+        plt.show()
 
 
 
