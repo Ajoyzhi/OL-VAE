@@ -7,7 +7,7 @@ import other.path as path
 from performance.performance import performance
 import time
 
-
+# 数据集和损失函数是相关联的，所以必须对不同的损失函数（数据集）建立不同的trainer
 class VAE_Kdd99_trainer():
     def __init__(self, net, trainloader: DataLoader, testloader: DataLoader, epochs: int = 150, lr: float = 0.001,
                  lr_milestones: tuple = (), weight_decay: float = 1e-6, thr: float = 0.01):
