@@ -8,7 +8,7 @@ from performance.performance import performance
 import time
 
 # 数据集和损失函数是相关联的，所以必须对不同的损失函数（数据集）建立不同的trainer
-class VAE_Kdd99_trainer():
+class OLVAE_Kdd99_trainer():
     def __init__(self, net, trainloader: DataLoader, testloader: DataLoader, epochs: int = 150, lr: float = 0.001,
                  lr_milestones: tuple = (), weight_decay: float = 1e-6, thr: float = 0.01):
         self.net = net
@@ -41,7 +41,7 @@ class VAE_Kdd99_trainer():
         # 设置学习率的下降区间和速度 gamma为学习率的下降速率
         scheduler = optim.lr_scheduler.MultiStepLR(optimizer, milestones=self.milestones, gamma=0.1)
         # 训练
-        logger.info("Starting training VAE with Kdd99...")
+        logger.info("Starting training OL_VAE with Kdd99...")
         start_time = time.time()
         self.net.train()
         for epoch in range(self.epochs):
@@ -89,7 +89,7 @@ class VAE_Kdd99_trainer():
         # all_loss就相当于所有迭代所有数据的总误差
         logger.info("Training time:{:.3f}\t Training loss:{:.8f}\t Normal mu:{:.5f}\t Normal std:{:.5f}".
                     format(self.train_time, self.train_loss, self.train_mu, self.train_std))
-        logger.info("Finishing training VAE with Kdd99...")
+        logger.info("Finishing training OL_VAE with Kdd99...")
 
         return self.net
 
@@ -100,7 +100,7 @@ class VAE_Kdd99_trainer():
         label_list = []
 
         logger = init_log(path.Log_Path)
-        logger.info("Starting testing VAE with kdd99...")
+        logger.info("Starting testing OL_VAE with kdd99...")
         start_time = time.time()
         upbound = self.train_mu + self.thr * self.train_std
         lowbound = self.train_mu - self.thr * self.train_std
@@ -138,7 +138,7 @@ class VAE_Kdd99_trainer():
         self.test_time = time.time() - start_time
         logger.info("Test time:{:.3f}\t accurancy:{:.5f}\t precision:{:.5f}\t recall:{:.5f}\t f1score:{:.5f}\t AUC:{:.5f}\t FPR:{:.5f}\t TPR:{:.5f}".
                     format(self.test_time, per_obj.accurancy, per_obj.precision, per_obj.recall, per_obj.f1score, per_obj.AUC, per_obj.FPR, per_obj.TPR))
-        logger.info("Finishing testing VAE with Kdd99...")
+        logger.info("Finishing testing OL_VAE with Kdd99...")
 
 # Reconstruction + KL divergence losses summed over all elements and batch
 def loss_function(recon_x, x, mu, std):
