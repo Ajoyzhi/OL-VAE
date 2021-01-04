@@ -118,7 +118,7 @@ class VAE_Kdd99_trainer():
 
                 index_list.append(index)
                 label_list.append(label)
-                # 只考虑均值和方差
+                # 只考虑均值和方差（准确度不是很高，但是不影响）
                 if (self.test_mu >= lowbound) and (self.test_mu <= upbound):
                     prediction.append(0)
                 else:
