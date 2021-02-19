@@ -2,11 +2,9 @@
 from dataset.KDD99.processed.util import Util
 from dataset.KDD99.processed.KDD99_loader import KDD99_Loader
 # 网络结构
-from network.VAE_Gauss import VAE_KDD99
-from network.OL_VAE import OL_VAE
+from network.VAE_KDD99 import VAE_KDD99
 # trainer
 from optim.VAE_KDD99_trainer import VAE_Kdd99_trainer
-from optim.OL_VAE_trainer import OLVAE_Kdd99_trainer
 
 from other import path
 import time
@@ -36,7 +34,7 @@ if __name__ == '__main__':
     print("The time to process al kdd99 data is {:.3f}".format(process_KDD90_time))
 
     # 创建训练和测试的kdd99_loader
-    kdd99_trian_loader = KDD99_Loader(train_data, train_label, batch_size=10, shuffle=True, num_workers=0).kdd_loader()
+    kdd99_trian_loader = KDD99_Loader(train_data, train_label, batch_size=1, shuffle=True, num_workers=0).kdd_loader()
     kdd99_test_loader = KDD99_Loader(test_data, test_label, batch_size=1, shuffle=False, num_workers=0).kdd_loader()
 
     # 创建kdd99_VAE_Guass网络结构
@@ -45,11 +43,11 @@ if __name__ == '__main__':
     kdd99_vae_trainer = VAE_Kdd99_trainer(net=kdd99_vae, trainloader=kdd99_trian_loader, testloader=kdd99_test_loader, epochs=20)
     kdd99_vae_trainer.train()
     kdd99_vae_trainer.test()
-
+"""
     # 创建kdd99_OLVAE网络解结构
     kdd99_olvae = OL_VAE()
     # 创建trainer，并训练网络
     kdd99_olvae_trainer = OLVAE_Kdd99_trainer(net=kdd99_olvae, trainloader=kdd99_trian_loader, testloader=kdd99_test_loader, epochs=20)
     kdd99_olvae_trainer.train()
     kdd99_olvae_trainer.test()
-
+"""
