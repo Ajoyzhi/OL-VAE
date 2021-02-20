@@ -93,7 +93,6 @@ class Util():
     def normalizations(self):
         # 从文件中加载所有数据（15个特征+1个label）
         data_label = np.loadtxt(self.feature_path, delimiter=",", skiprows=0)
-        # print("data_label", data_label)
         # rows = 97278
         rows = data_label.shape[0]
 
@@ -106,30 +105,13 @@ class Util():
         temp_data = np.hsplit(data_sample,(self.feature, self.feature+1))
         self.data = temp_data[0]
         self.label = temp_data[1]
-        """ 
-        # 选择所有特征进行最大最小化
-        min_max_scaler = preprocessing.MinMaxScaler()
-        x_data_min_max = min_max_scaler.fit_transform(x_data)
-        # 97 * 15
-        # print("\nafter min_max normalizing, the x_data is:", x_data_min_max)
 
-        # 选择连续数据进行归一化(除了第1-3列)
-        x_data_seq_T = x_data_min_max.T[3:-1]
-        # 97 * 12
-        x_data_seq_array = x_data_seq_T.T
-        x_data_z_score = preprocessing.scale(x_data_seq_array)
-        # print("\nafter z_score normalizing, the x_data is :", x_data_z_score)
+        # 对数据部分进行标准化
+        self.data = normalize(self.data)
 
-        # 归一化和最大最小化的矩阵合并为一个array
-        x_1to3_T = x_data_min_max.T[0:4]
-        # 97 * 3
-        x_1to3 = x_1to3_T.T
-        # 在列上合并 97 * 15
-        self.data = np.hstack((x_1to3, x_data_z_score))
-        """
         # 将采样的数据输出到文件中
         temp_data_label = np.array(np.hstack((self.data, self.label)))
-        np.savetxt(self.des_path, temp_data_label, delimiter=',')
+        np.savetxt(self.des_path, temp_data_label, fmt='%.5f',delimiter=',')
 
 # 中间代码
 def handle_protocol(protocal):
@@ -174,6 +156,28 @@ def sample(array, number):
     rand_arr = np.arange(array.shape[0])
     np.random.shuffle(rand_arr)
     data_sample = array[rand_arr[0:number]]
-
     return data_sample
+
+def normalize(x_data):
+    # 选择所有特征进行最大最小化
+    min_max_scaler = preprocessing.MinMaxScaler()
+    x_data_min_max = min_max_scaler.fit_transform(x_data)
+    # 97 * 15
+    # print("\nafter min_max normalizing, the x_data is:", x_data_min_max)
+
+    # 选择连续数据进行归一化(除了第1-3列)
+    x_data_seq_T = x_data_min_max.T[3:-1]
+    # 97 * 12
+    x_data_seq_array = x_data_seq_T.T
+    x_data_z_score = preprocessing.scale(x_data_seq_array)
+    # print("\nafter z_score normalizing, the x_data is :", x_data_z_score)
+
+    # 归一化和最大最小化的矩阵合并为一个array
+    x_1to3_T = x_data_min_max.T[0:4]
+    # 97 * 3
+    x_1to3 = x_1to3_T.T
+    # 在列上合并 97 * 15
+    data = np.hstack((x_1to3, x_data_z_score))
+
+    return data
 

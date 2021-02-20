@@ -16,5 +16,6 @@ Test_Number_Path = './dataset/KDD99/raw/corrected_number.cvs'
 Test_Feature_Path =  './dataset/KDD99/raw/corrected_feature.cvs'
 # 按比例选择后的数据，标准化和归一化之后的训练数据（最终使用的训练数据）
 Trest_Des_Path = './dataset/KDD99/raw/corrected_destination.cvs'
+
 # KDD99 log输出位置
 Log_Path = './other/log/'
