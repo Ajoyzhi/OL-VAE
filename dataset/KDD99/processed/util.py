@@ -92,7 +92,7 @@ class Util():
     """
     def normalizations(self):
         # 从文件中加载所有数据（15个特征+1个label）
-        data_label = np.loadtxt(self.feature_path, delimiter=",", skiprows=0)
+        data_label = np.loadtxt(self.feature_path, dtype=float, delimiter=",", skiprows=0)
         # rows = 97278
         rows = data_label.shape[0]
 
@@ -111,7 +111,7 @@ class Util():
 
         # 将采样的数据输出到文件中
         temp_data_label = np.array(np.hstack((self.data, self.label)))
-        np.savetxt(self.des_path, temp_data_label, fmt='%.5f',delimiter=',')
+        np.savetxt(self.des_path, temp_data_label,fmt='%.5f', delimiter=',')
 
 # 中间代码
 def handle_protocol(protocal):

@@ -1,0 +1,44 @@
+2021-02-20 22:24:23,992 - Starting training VAE with Kdd99...
+2021-02-20 22:24:24,042 - 
+ Epoch1/20	 Training time of each epoch:0.050	 Avarge loss of each batch:5.73441360	
+2021-02-20 22:24:24,072 - 
+ Epoch2/20	 Training time of each epoch:0.030	 Avarge loss of each batch:3.44169196	
+2021-02-20 22:24:24,102 - 
+ Epoch3/20	 Training time of each epoch:0.030	 Avarge loss of each batch:2.56420331	
+2021-02-20 22:24:24,132 - 
+ Epoch4/20	 Training time of each epoch:0.030	 Avarge loss of each batch:2.09684007	
+2021-02-20 22:24:24,162 - 
+ Epoch5/20	 Training time of each epoch:0.030	 Avarge loss of each batch:1.78157092	
+2021-02-20 22:24:24,182 - 
+ Epoch6/20	 Training time of each epoch:0.020	 Avarge loss of each batch:1.55787393	
+2021-02-20 22:24:24,212 - 
+ Epoch7/20	 Training time of each epoch:0.030	 Avarge loss of each batch:1.41602477	
+2021-02-20 22:24:24,242 - 
+ Epoch8/20	 Training time of each epoch:0.030	 Avarge loss of each batch:1.29411972	
+2021-02-20 22:24:24,272 - 
+ Epoch9/20	 Training time of each epoch:0.030	 Avarge loss of each batch:1.21705754	
+2021-02-20 22:24:24,302 - 
+ Epoch10/20	 Training time of each epoch:0.030	 Avarge loss of each batch:1.14688621	
+2021-02-20 22:24:24,322 - 
+ Epoch11/20	 Training time of each epoch:0.020	 Avarge loss of each batch:1.08922966	
+2021-02-20 22:24:24,352 - 
+ Epoch12/20	 Training time of each epoch:0.030	 Avarge loss of each batch:1.04673329	
+2021-02-20 22:24:24,382 - 
+ Epoch13/20	 Training time of each epoch:0.030	 Avarge loss of each batch:1.00794894	
+2021-02-20 22:24:24,412 - 
+ Epoch14/20	 Training time of each epoch:0.030	 Avarge loss of each batch:0.97707070	
+2021-02-20 22:24:24,442 - 
+ Epoch15/20	 Training time of each epoch:0.030	 Avarge loss of each batch:0.94727652	
+2021-02-20 22:24:24,462 - 
+ Epoch16/20	 Training time of each epoch:0.020	 Avarge loss of each batch:0.93062298	
+2021-02-20 22:24:24,492 - 
+ Epoch17/20	 Training time of each epoch:0.030	 Avarge loss of each batch:0.90470142	
+2021-02-20 22:24:24,522 - 
+ Epoch18/20	 Training time of each epoch:0.030	 Avarge loss of each batch:0.88657653	
+2021-02-20 22:24:24,552 - 
+ Epoch19/20	 Training time of each epoch:0.030	 Avarge loss of each batch:0.87313114	
+2021-02-20 22:24:24,582 - 
+ Epoch20/20	 Training time of each epoch:0.030	 Avarge loss of each batch:0.86824812	
+2021-02-20 22:24:24,582 - Training time:0.590	 Avarge loss of each epoch:15.89111067	
+2021-02-20 22:24:24,582 - Finish training VAE with Kdd99.
+2021-02-20 22:24:24,582 - Starting getting the mean and standart deviation of normal data...

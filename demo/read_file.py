@@ -85,6 +85,7 @@ sel = np.random.choice(array.shape[0], size=2, replace=False)
 print("sel:", sel)
 """
 array = np.arange(8).reshape(4,2)
+print(array.dtype)
 def sample(array, number):
     # 将矩阵转化为list，随机采样，返回array
     rand_arr = np.arange(array.shape[0])
