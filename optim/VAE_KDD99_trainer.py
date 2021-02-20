@@ -6,6 +6,7 @@ from other.log import init_log
 import other.path as path
 from performance.performance import performance
 import time
+import math
 
 # 数据集和损失函数是相关联的，所以必须对不同的损失函数（数据集）建立不同的trainer
 class VAE_Kdd99_trainer():
@@ -20,10 +21,8 @@ class VAE_Kdd99_trainer():
         self.milestones = lr_milestones
         # L2正则化的系数
         self.weight_decay = weight_decay
+        self.logger = init_log(path.Log_Path)
 
-        # 训练时，平均参数
-        self.train_time = 0.0
-        self.train_loss = 0.0
         # 15维向量的均值
         self.train_mu = 0.0
         self.train_std = 0.0
@@ -38,63 +37,80 @@ class VAE_Kdd99_trainer():
         self.thr = thr
 
     def train(self):
-        logger = init_log(path.Log_Path)
         # 设置优化算法
         optimizer = optim.Adam(self.net.parameters(), lr=self.lr, weight_decay=self.weight_decay)
         # 设置学习率的下降区间和速度 gamma为学习率的下降速率
         scheduler = optim.lr_scheduler.MultiStepLR(optimizer, milestones=self.milestones, gamma=0.1)
         # 训练
-        logger.info("Starting training VAE with Kdd99...")
+        self.logger.info("Starting training VAE with Kdd99...")
         start_time = time.time()
         self.net.train()
+        train_loss = 0.0
         for epoch in range(self.epochs):
             # 训练过程
             epoch_loss = 0.0
-            epoch_mu = 0.0
-            epoch_std = 0.0
             count_batch = 0
             epoch_start_time = time.time()
             for item in self.trainloader:
                 data, _, _ = item
                 optimizer.zero_grad()
+                data = data.float()
+                # print("data type: float32", data.dtype)
                 # 执行的是forward函数 mu一个15维的向量；logvar为15维的向量
-                recon_batch, mu, logvar = self.net(data)
+                recon_batch, mu, logvar, _ = self.net.forward(data)
                 # 损失函数必须和网络结构、数据集绑定在一起
-                loss = loss_function(recon_batch, data, mu, logvar)
-                loss.backward()
+                batch_loss = loss_function(recon_batch, data, mu, logvar)
+                batch_loss.backward()
                 optimizer.step()
                 scheduler.step()
-
-                # 一次迭代中所有数据的误差loss，所有数据的均值mu，所有数据的方差logvar
-                epoch_loss += loss.item()
-                epoch_mu += mu.mean().item()
-                epoch_std += torch.sqrt(logvar.exp()).mean()
+                # 一次迭代中所有数据的误差loss
+                epoch_loss += batch_loss.item()
                 count_batch += 1
-
             # 显示学习率的变化
             if epoch in self.milestones:
-                logger.info("LR scheduler: new learning rate is %g" % float(scheduler.get_lr()[0]))
-
+                self.logger.info("LR scheduler: new learning rate is %g" % float(scheduler.get_lr()[0]))
+            # 输出每个epoch的训练时间和每个batch的训练损失
+            train_loss += epoch_loss
             epoch_train_time = time.time() - epoch_start_time
             # epoch_loss就是一次迭代所有数据的总误差
-            logger.info("\n Epoch{}/{}\t Time:{:.3f}\t Avarge loss of each batch:{:.8f}\t Avarge mu of each batch:{:.5f}\t Avarge std of each epoch:{:.5f}".
-                        format(epoch+1, self.epochs, epoch_train_time, epoch_loss/count_batch, epoch_mu/count_batch, epoch_std/count_batch))
-            self.count_batch = count_batch
-
-            self.train_loss += epoch_loss
-            self.train_mu += epoch_mu
-            self.train_std += epoch_std
-
-        self.train_time = time.time() - start_time
-        self.train_loss /= (self.epochs* self.count_batch)
-        self.train_mu /= (self.epochs* self.count_batch)
-        self.train_std /= (self.epochs* self.count_batch)
-
+            self.logger.info("\n Epoch{}/{}\t Training time of each epoch:{:.3f}\t Avarge loss of each batch:{:.8f}\t".
+                        format(epoch+1, self.epochs, epoch_train_time, epoch_loss/count_batch))
+        # 计算所有数据的训练时间和每个epoch的训练损失
+        train_time = time.time() - start_time
+        train_loss /= self.epochs
         # train_loss就相当于所有迭代所有数据的总误差
-        logger.info("Training time:{:.3f}\t Avarge training loss of each epoch:{:.8f}\t Normal mu:{:.5f}\t Normal std:{:.5f}".
-                    format(self.train_time, self.train_loss, self.train_mu, self.train_std))
-        logger.info("Finishing training VAE with Kdd99...")
+        self.logger.info("Training time:{:.3f}\t Avarge loss of each epoch:{:.8f}\t".format(train_time, train_loss))
+        self.logger.info("Finish training VAE with Kdd99.")
 
+    def get_normal_parm(self):
+        mu_list = []
+        std_list = []
+        loss_list = []
+        self.logger.info("Starting getting the mean and standart deviation of normal data...")
+        start_time = time.time()
+        self.net.eval()
+        count_batch = 0
+        with torch.no_grad():
+            for item in self.trainloader:
+                data, _, _ = item
+                data = data.float()
+                recon, mu, logvar, std = self.net(data)
+                # 其实没有必要计算损失
+                loss = loss_function(recon, data, mu, logvar)
+                count_batch += 1
+
+                mu_list.append(mu)
+                std_list.append(std)
+                loss_list.append(loss)
+
+            print("mu_list:", mu_list)
+            print("std_list", std_list)
+            print("loss_list", loss_list)
+
+        self.logger.info("Finish getting parameters.")
+
+
+"""    
     def test(self):
         prediction = []
         index_list= []
@@ -111,8 +127,8 @@ class VAE_Kdd99_trainer():
                 data, label, index = item
                 # 只是一个batch的损失，mu，logvar
                 # 如果batch为1，则以下变量对应一个数据的loss、mu、logvar
-                recon_batch, mu, logvar = self.net(data)
-                test_loss = loss_function(recon_batch, data, mu, logvar)
+                _, mu, _, std = self.net(data)
+                test_loss = loss_function(recon_batch, data, mu, std)
                 self.test_mu = mu.mean()
                 self.test_std = torch.sqrt(logvar.exp()).mean()
                 self.test_loss = test_loss.mean()
@@ -130,7 +146,7 @@ class VAE_Kdd99_trainer():
                 # 将index，label，predict_label封装在一个list中
             index_label_prediction = list(zip(index_list, label_list, prediction))
             logger.info(index_label_prediction)
-        """
+   
         # 输出性能
         per_obj = performance(index_label_prediction)
         per_obj.get_base_metrics()
@@ -139,9 +155,9 @@ class VAE_Kdd99_trainer():
         self.test_time = time.time() - start_time
         logger.info("Test time:{:.3f}\t accurancy:{}\t precision:{}\t recall:{}\t f1score:{}\t AUC:{}\t".
                     format(self.test_time, per_obj.accurancy, per_obj.precision, per_obj.recall, per_obj.f1score, per_obj.AUC))
-        """
+        
         logger.info("Finishing testing VAE with Kdd99...")
-
+"""
 # Reconstruction + KL divergence losses summed over all elements and batch
 def loss_function(recon_x, x, mu, logvar):
     # 累加重构误差
