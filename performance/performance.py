@@ -13,7 +13,6 @@ class performance():
         self.f1score = 0.0
         self.AUC = 0.0
 
-
     def get_base_metrics(self):
         # 由于是二分类问题，所以只区分正常和异常数据
         self.label = [1 if i != 0 else i for i in self.label ]
