@@ -23,10 +23,10 @@ class VAE_Kdd99_trainer():
         self.weight_decay = weight_decay
         self.logger = init_log(path.Log_Path)
 
-        # 15维向量的均值
+        # 15维向量
         self.train_mu = 0.0
         self.train_std = 0.0
-        self.count_batch = 0
+        self.train_loss = 0.0
 
         # 测试时，每个数据的参数
         self.test_time = 0.0
@@ -41,6 +41,7 @@ class VAE_Kdd99_trainer():
         optimizer = optim.Adam(self.net.parameters(), lr=self.lr, weight_decay=self.weight_decay)
         # 设置学习率的下降区间和速度 gamma为学习率的下降速率
         scheduler = optim.lr_scheduler.MultiStepLR(optimizer, milestones=self.milestones, gamma=0.1)
+        print("Starting training VAE with Kdd99...")
         # 训练
         self.logger.info("Starting training VAE with Kdd99...")
         start_time = time.time()
@@ -81,11 +82,14 @@ class VAE_Kdd99_trainer():
         # train_loss就相当于所有迭代所有数据的总误差
         self.logger.info("Training time:{:.3f}\t Avarge loss of each epoch:{:.8f}\t".format(train_time, train_loss))
         self.logger.info("Finish training VAE with Kdd99.")
+        print("Finish training VAE with Kdd99.")
 
     def get_normal_parm(self):
         mu_list = []
         std_list = []
         loss_list = []
+
+        print("Starting getting the mean and standart deviation of normal data...")
         self.logger.info("Starting getting the mean and standart deviation of normal data...")
         start_time = time.time()
         self.net.eval()
@@ -98,17 +102,24 @@ class VAE_Kdd99_trainer():
                 # 其实没有必要计算损失
                 loss = loss_function(recon, data, mu, logvar)
                 count_batch += 1
+                # 求每个batch（10个数据）的平均值向量
+                batch_mu_list = torch.mean(mu, dim=0)
+                batch_std_list = torch.mean(std, dim=0)
+                batch_loss_list = torch.mean(loss, dim=0)
 
-                mu_list.append(mu)
-                std_list.append(std)
-                loss_list.append(loss)
+                mu_list.append(batch_mu_list)
+                std_list.append(batch_std_list)
+                loss_list.append(batch_loss_list)
 
-            print("mu_list:", mu_list)
-            print("std_list", std_list)
-            print("loss_list", loss_list)
+            self.train_mu = list_avrg(mu_list)
+            self.train_std = list_avrg(std_list)
+            self.train_loss = list_avrg(loss_list)
 
+        self.logger.info(self.train_mu)
+        self.logger.info(self.train_std)
+        self.logger.info(self.train_loss)
         self.logger.info("Finish getting parameters.")
-
+        print("Finish getting parameters.")
 
 """    
     def test(self):
@@ -170,3 +181,10 @@ def loss_function(recon_x, x, mu, logvar):
     # 0.5 * sum(1 + log(sigma^2) - mu^2 - sigma^2)
     KLD = -0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp())
     return BCE + KLD
+
+def list_avrg(list):
+    sum = 0
+    for item in list:
+        sum += item
+
+    return sum/len(list)
