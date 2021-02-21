@@ -20,7 +20,7 @@ class VAE_KDD99(nn.Module):
         std = torch.exp(0.5 * logvar)
         # Ajoy 生成与std大小一致的服从标准正态分布的数据 epsilon
         eps = torch.randn_like(std)
-        return mu + eps*std, std
+        return mu + eps*std
 
     def decode(self, z):
         h3 = F.relu(self.fc3(z))
@@ -28,5 +28,5 @@ class VAE_KDD99(nn.Module):
 
     def forward(self, x):
         mu, logvar = self.encode(x.view(-1, 15))
-        z, std = self.reparameterize(mu, logvar)
-        return self.decode(z), mu, logvar, std
+        z = self.reparameterize(mu, logvar)
+        return self.decode(z), mu, logvar

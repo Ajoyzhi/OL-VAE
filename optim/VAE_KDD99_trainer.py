@@ -6,12 +6,12 @@ from other.log import init_log
 import other.path as path
 from performance.performance import performance
 import time
-import math
+from scipy.stats import multivariate_normal
 
 # 数据集和损失函数是相关联的，所以必须对不同的损失函数（数据集）建立不同的trainer
 class VAE_Kdd99_trainer():
     def __init__(self, net, trainloader: DataLoader, testloader: DataLoader, epochs: int = 10, lr: float = 0.001,
-                 lr_milestones: tuple = (), weight_decay: float = 1e-6, thr: float = 0.01):
+                 lr_milestones: tuple = (), weight_decay: float = 1e-6):
         self.net = net
         self.trainloader = trainloader
         self.testloader = testloader
@@ -25,16 +25,11 @@ class VAE_Kdd99_trainer():
 
         # 15维向量
         self.train_mu = 0.0
-        self.train_std = 0.0
+        self.train_var = 0.0
         self.train_loss = 0.0
 
         # 测试时，每个数据的参数
         self.test_time = 0.0
-        self.test_loss = 0.0
-        self.test_mu = 0.0
-        self.test_std = 0.0
-
-        self.thr = thr
 
     def train(self):
         # 设置优化算法
@@ -58,9 +53,9 @@ class VAE_Kdd99_trainer():
                 data = data.float()
                 # print("data type: float32", data.dtype)
                 # 执行的是forward函数 mu一个15维的向量；logvar为15维的向量
-                recon_batch, mu, logvar, _ = self.net.forward(data)
+                recon_batch, mu, logvar = self.net.forward(data)
                 # 损失函数必须和网络结构、数据集绑定在一起
-                batch_loss = loss_function(recon_batch, data, mu, logvar)
+                batch_loss, _ = loss_function(recon_batch, data, mu, logvar)
                 batch_loss.backward()
                 optimizer.step()
                 scheduler.step()
@@ -86,7 +81,7 @@ class VAE_Kdd99_trainer():
 
     def get_normal_parm(self):
         mu_list = []
-        std_list = []
+        var_list = []
         loss_list = []
 
         print("Starting getting the mean and standart deviation of normal data...")
@@ -98,77 +93,96 @@ class VAE_Kdd99_trainer():
             for item in self.trainloader:
                 data, _, _ = item
                 data = data.float()
-                recon, mu, logvar, std = self.net(data)
+                recon, mu, logvar = self.net(data)
                 # 其实没有必要计算损失
-                loss = loss_function(recon, data, mu, logvar)
+                loss, var = loss_function(recon, data, mu, logvar)
                 count_batch += 1
                 # 求每个batch（10个数据）的平均值向量
                 batch_mu_list = torch.mean(mu, dim=0)
-                batch_std_list = torch.mean(std, dim=0)
+                batch_var_list = torch.mean(var, dim=0)
                 batch_loss_list = torch.mean(loss, dim=0)
 
                 mu_list.append(batch_mu_list)
-                std_list.append(batch_std_list)
+                var_list.append(batch_var_list)
                 loss_list.append(batch_loss_list)
 
             self.train_mu = list_avrg(mu_list)
-            self.train_std = list_avrg(std_list)
+            self.train_var = list_avrg(var_list)
             self.train_loss = list_avrg(loss_list)
 
-        self.logger.info(self.train_mu)
-        self.logger.info(self.train_std)
-        self.logger.info(self.train_loss)
+        using_time = time.time() - start_time
+        self.logger.info("the mean of normal distribution is {}".format(self.train_mu))
+        self.logger.info("the std of normal distribution is {}".format(self.train_var))
+        self.logger.info("the loss of training data is {}".format(self.train_loss))
+        self.logger.info("the using time of getting param is {}".format(using_time))
         self.logger.info("Finish getting parameters.")
         print("Finish getting parameters.")
 
-"""    
-    def test(self):
-        prediction = []
-        index_list= []
+    """
+        测试样本是否正常
+        输入：表示3sigma中的3；M：采样的次数; threshold: 判断异常与否的阈值[0,1]
+        输出：异常分数score [0,1]；标签flag {0,1}
+    """
+    def test(self, M: int=10, threshould: float=0.5):
+        # 其实index_list没有必要
+        index_list = []
+        prediction_list = []
         label_list = []
+        index_label_prediction = []
 
-        logger = init_log(path.Log_Path)
-        logger.info("Starting testing VAE with kdd99...")
+        self.logger.info("Starting testing VAE with kdd99...")
         start_time = time.time()
-        upbound = self.train_mu + self.train_std
-        lowbound = self.train_mu - self.train_std
         self.net.eval()
         with torch.no_grad():
             for item in self.testloader:
                 data, label, index = item
+                data = data.float()
                 # 只是一个batch的损失，mu，logvar
                 # 如果batch为1，则以下变量对应一个数据的loss、mu、logvar
-                _, mu, _, std = self.net(data)
-                test_loss = loss_function(recon_batch, data, mu, std)
-                self.test_mu = mu.mean()
-                self.test_std = torch.sqrt(logvar.exp()).mean()
-                self.test_loss = test_loss.mean()
+                _, mu, logvar = self.net(data)
+                # 计算方差
+                var = logvar.exp()
+                # 计算标准差
+                std = torch.exp(0.5 * logvar)
+                # 采样 M=10，并遍历simple_z判断数据异常与否
+                sum_prob = 0.0
+                for i in range(M):
+                    eps = torch.randn_like(std)
+                    z = mu + eps*std
+                    # 计算每个隐变量采样出现的概率
+                    prob_z = multivariate_normal.pdf(z, self.train_mu, self.train_var)
+                    sum_prob += prob_z
 
+                avrg_prob = sum_prob/M
+                print("avrg_prob", avrg_prob)
+                # 统计结果
                 index_list.append(index)
                 label_list.append(label)
-                # 只考虑均值和方差（准确度不是很高，但是不影响）
-                if (self.test_mu >= lowbound) and (self.test_mu <= upbound):
-                    prediction.append(0)
+                if avrg_prob < threshould:
+                    prediction_list.append(1)# 异常
                 else:
-                    prediction.append(1)
+                    prediction_list.append(0)# 正常
+
+                # 将{index，label，predict_label}封装在一个list中
+                index_label_prediction = zip(index_list, label_list, prediction_list)
                 # 打印label和预测结果
-                logger.info("index:{:.0f}\t label:{}\t prediction:{}\t mu:{:.5f}\t std:{:.5f}\t loss;{:.5f}".
-                            format(int(index), label, prediction[index], self.test_mu, self.test_std, self.test_loss))
-                # 将index，label，predict_label封装在一个list中
-            index_label_prediction = list(zip(index_list, label_list, prediction))
-            logger.info(index_label_prediction)
+                self.logger.info("index:{}\t label:{}\t prediction:{}\t mu:{}\t std:{}\t".
+                            format(index, label, prediction_list[index], mu, std))
+
+            self.test_time = time.time() - start_time
+            self.logger.info("detection time is {}".format(self.test_time))
+            print(index_label_prediction)
    
         # 输出性能
         per_obj = performance(index_label_prediction)
         per_obj.get_base_metrics()
         per_obj.AUC_ROC()
-        
-        self.test_time = time.time() - start_time
-        logger.info("Test time:{:.3f}\t accurancy:{}\t precision:{}\t recall:{}\t f1score:{}\t AUC:{}\t".
-                    format(self.test_time, per_obj.accurancy, per_obj.precision, per_obj.recall, per_obj.f1score, per_obj.AUC))
-        
-        logger.info("Finishing testing VAE with Kdd99...")
-"""
+
+        self.logger.info("accurancy:{}\t precision:{}\t recall:{}\t f1score:{}\t AUC:{}\t".
+                    format(per_obj.accurancy, per_obj.precision, per_obj.recall, per_obj.f1score, per_obj.AUC))
+
+        self.logger.info("Finishing testing VAE with Kdd99...")
+
 # Reconstruction + KL divergence losses summed over all elements and batch
 def loss_function(recon_x, x, mu, logvar):
     # 累加重构误差
@@ -179,8 +193,9 @@ def loss_function(recon_x, x, mu, logvar):
     # Kingma and Welling. Auto-Encoding Variational Bayes. ICLR, 2014
     # https://arxiv.org/abs/1312.6114
     # 0.5 * sum(1 + log(sigma^2) - mu^2 - sigma^2)
+    var = logvar.exp()
     KLD = -0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp())
-    return BCE + KLD
+    return BCE + KLD, var
 
 def list_avrg(list):
     sum = 0

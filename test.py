@@ -29,3 +29,5 @@ kdd99_vae = VAE_KDD99()
 kdd99_vae_trainer = VAE_Kdd99_trainer(net=kdd99_vae, trainloader=kdd99_train_loader, testloader=kdd99_test_loader, epochs=20)
 kdd99_vae_trainer.train()
 kdd99_vae_trainer.get_normal_parm()
+# 测试算法性能
+kdd99_vae_trainer.test()
