@@ -21,7 +21,7 @@ print("the time of get and process normal data is: {:.2f}".format(time))
 kdd99_train_loader = KDD99_Loader(ratio=0.001, isTrain=True, preprocess=False,
                                   batch_size=10, shuffle=False, num_workers=0).loader
 kdd99_test_loader = KDD99_Loader(ratio=0.001, isTrain=False, preprocess=False,
-                                     batch_size=10, shuffle=False, num_workers=0).loader
+                                     batch_size=1, shuffle=False, num_workers=0).loader
 
 # 创建kdd99_VAE_Guass网络结构
 kdd99_vae = VAE_KDD99()
