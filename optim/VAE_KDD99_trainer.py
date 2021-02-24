@@ -101,6 +101,7 @@ class VAE_Kdd99_trainer():
             for item in self.trainloader:
                 data, _, _ = item
                 data = data.float()
+                # simple mu and var
                 recon, mu, logvar = self.net(data)
                 # 其实没有必要计算损失
                 loss, var = loss_function(recon, data, mu, logvar)
@@ -116,38 +117,33 @@ class VAE_Kdd99_trainer():
 
                 # 获取正常数据分布的阈值
                 mu_numpy = mu.numpy()
-                # 计算标准差
+                var_numpy = var.numpy()
+                # 计算variance
                 std = torch.exp(0.5 * logvar)
                 std_numpy = std.numpy()
                 normaldata_prob = 0.0
                 for i in range(len(mu_numpy)):
-                    # 每个数据隐变量采样的概率和
-                    eachdata_prob = 0.0
                     mu = torch.from_numpy(mu_numpy[i])
                     std = torch.from_numpy(std_numpy[i])
-                    for i in range(self.M):
-                        eps = torch.randn_like(std)
-                        z = mu + eps * std
-                        # 计算每个隐变量采样出现的概率
-                        prob_z = multivariate_normal.pdf(z, mu, std.transpose(0,1).mm(std))
-                        eachdata_prob += prob_z
-                    eachdata_prob /= self.M
+                    var = torch.from_numpy(var_numpy[i])
+                    # 每个数据隐变量采样的概率mean
+                    eachdata_prob = prob_avrg(self.M, mu, std, mu, var)
                     normaldata_prob += eachdata_prob
                 normaldata_prob /= len(mu_numpy)
-
-                print("normal data probability:", normaldata_prob)
 
             self.threshold = normaldata_prob
             self.train_mu = list_avrg(mu_list)
             self.train_var = list_avrg(var_list)
-            self.train_var_diag = np.diag(self.train_var)
             self.train_loss = list_avrg(loss_list)
 
         using_time = time.time() - start_time
-        self.logger.info("the mean of normal distribution is {}".format(self.train_mu))
-        self.logger.info("the std of normal distribution is {}".format(self.train_var))
-        self.logger.info("the loss of training data is {:.8f}".format(self.train_loss))
-        self.logger.info("the using time of getting param is {:.3f}".format(using_time))
+
+        self.logger.info("the threshold is {}\n "
+                         "the mean of normal distribution is {}\n"
+                         "the variance of normal distribution is {}\n"
+                         "the loss of training data is {:.8f}\n"
+                         "the using time of getting param is {:.3f}\n"
+                         .format(self.threshold, self.train_mu, self.train_var, self.train_loss, using_time))
         self.logger.info("Finish getting parameters.")
         print("Finish getting parameters.")
 
@@ -174,19 +170,9 @@ class VAE_Kdd99_trainer():
                 # 只是一个batch的损失，mu，logvar
                 # 如果batch为1，则以下变量对应一个数据的loss、mu、logvar
                 _, mu, logvar = self.net(data)
-                # 计算标准差
+                # 计算simple标准差
                 std = torch.exp(0.5 * logvar)
-                # 采样M次，隐变量z出现的概率总和
-                sum_prob = 0.0
-                for i in range(M):
-                    # 采样 M=10
-                    eps = torch.randn_like(std)
-                    z = mu + eps*std
-                    # 计算每个隐变量采样出现的概率
-                    prob_z = multivariate_normal.pdf(z, self.train_mu, self.train_var)
-                    sum_prob += prob_z
-
-                avrg_prob = sum_prob/M
+                avrg_prob = prob_avrg(M, mu, std, self.train_mu, self.train_var)
                 # 统计结果
                 # index_list.append(index)
                 label_list.append(label)
@@ -226,12 +212,37 @@ def loss_function(recon_x, x, mu, logvar):
     # https://arxiv.org/abs/1312.6114
     # 0.5 * sum(1 + log(sigma^2) - mu^2 - sigma^2)
     var = logvar.exp()
+    std = torch.exp(0.5 * logvar)
     KLD = -0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp())
     return BCE + KLD, var
 
+# compute the mean of data in list
 def list_avrg(list):
     sum = 0
     for item in list:
         sum += item
-
     return sum/len(list)
+
+# compute the mean prob of M simples
+"""
+    input:  M: the number of sample(int); 
+            simple_mu: the mu of simple distribution(15-dim vector)
+            simple_std: the standard of simple distribution(15-dim vector)
+            prob_mu: the mu of normal distribution(15-dim vector)
+            prob_var:the standard of normal distribution(15-dim vector)
+    return: the mean probability of M samples  
+"""
+def prob_avrg(M: int, simple_mu, simple_std, prob_mu, prob_var):
+    prob = 0.0
+    for i in range(M):
+        # get M simples
+        eps = torch.randn_like(simple_std)
+        z = simple_mu + eps * simple_std
+        # get prob
+        each_prob = multivariate_normal.pdf(z, prob_mu, np.diag(prob_var))
+        # compute the sum prob of M simples
+        prob += each_prob
+    prob = prob / M
+    return prob
+
+
