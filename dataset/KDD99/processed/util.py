@@ -43,10 +43,11 @@ class Util():
                     if int(temp_line[41]) == 0:
                         self.train_count += 1
                         csv_writer.writerow(temp_line)
-                # 否则将所有数据均输出到文件中。
+                # 否则将DoS攻击数据均输出到文件中。
                 else:
-                    self.test_count += 1
-                    csv_writer.writerow(temp_line)
+                    if int(temp_line[41]) in {10, 11, 13, 14, 16, 17}:
+                        self.test_count += 1
+                        csv_writer.writerow(temp_line)
         data_file.close()
 
     """
