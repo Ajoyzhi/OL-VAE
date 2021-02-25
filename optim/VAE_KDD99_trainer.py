@@ -28,14 +28,13 @@ class VAE_Kdd99_trainer():
         self.train_var = 0.0 # 15维向量
         self.train_var_diag = 0.0 # 15 * 15矩阵
         self.train_loss = 0.0
-
+        # 异常判断的门限值
+        self.threshold = 5e-9
+        # 采样次数
         self.M = 10
 
         # 测试时，每个数据的参数
         self.test_time = 0.0
-
-        # 异常判断的门限值
-        self.threshold = 5e-9
 
     def train(self):
         # 设置优化算法
