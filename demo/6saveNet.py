@@ -29,6 +29,11 @@ def save():
     torch.save(net1, 'net_pkl')                    # entire net 'net_pkl'就是网络名或者称为参数名，不是什么类型
     torch.save(net1.state_dict(), 'net_param.pkl') # entire net parameters
 
+    # 查看网络参数
+    param = list(net1.named_parameters())
+    # (name,param)
+    print(param)
+
     # 可视化
     plt.figure(1, figsize=(10, 3))
     plt.subplot(131)
@@ -69,6 +74,6 @@ def restore_params():
     #plt.show()
 
 save()
-restore_net()
-restore_params()
-plt.show()
+# restore_net()
+# restore_params()
+# plt.show()
