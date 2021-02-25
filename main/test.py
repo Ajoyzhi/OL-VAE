@@ -17,12 +17,20 @@ time = time.time()-start_time
 # 大概需要7s
 print("the time of get and process normal data is: {:.2f}".format(time))
 """
+"""
+start_time = time.time()
+kdd99_train_loader = KDD99_Loader(ratio=0.001, isTrain=True, preprocess=True,
+                                  batch_size=10, shuffle=False, num_workers=0).loader
+kdd99_test_loader = KDD99_Loader(ratio=0.001, isTrain=False, preprocess=True,
+                                 batch_size=1, shuffle=False, num_workers=0).loader
+using_time = time.time() -start_time
+print("using time:", using_time)# 大概65.58s
+"""
 
 kdd99_train_loader = KDD99_Loader(ratio=0.001, isTrain=True, preprocess=False,
                                   batch_size=10, shuffle=False, num_workers=0).loader
 kdd99_test_loader = KDD99_Loader(ratio=0.001, isTrain=False, preprocess=False,
-                                     batch_size=1, shuffle=False, num_workers=0).loader
-
+                                 batch_size=1, shuffle=False, num_workers=0).loader
 # 创建kdd99_VAE_Guass网络结构
 kdd99_vae = VAE_KDD99()
 # 创建trainer，并训练网络
