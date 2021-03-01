@@ -4,9 +4,9 @@ from torch.nn import functional as F
 """
     作为VAE_1D_Online的对比算法
 """
-class VAE_KDD99(nn.Module):
+class VAE_1D(nn.Module):
     def __init__(self):
-        super(VAE_KDD99, self).__init__()
+        super(VAE_1D, self).__init__()
 
         self.fc1 = nn.Linear(1, 5)
         self.fc21 = nn.Linear(5, 1)
