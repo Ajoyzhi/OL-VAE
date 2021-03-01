@@ -2,22 +2,16 @@ import torch
 import torch.optim as optim
 
 from torch.utils.data import DataLoader
-from other.log import init_log
-from performance.performance import performance
 import time
-import numpy as np
-import matplotlib.pyplot as plt
-
 """
     对改进的VAE算法和原始VAE算法进行训练
     输入：1-D数据
     输出（主要对比参数）：均值和方差是否一致；损失函数；训练时间；测试时间
+    其它：并未使用testloader
 """
-
-
 # 数据集和损失函数是相关联的，所以必须对不同的损失函数（数据集）建立不同的trainer
 class VAE_1D_trainer():
-    def __init__(self, net, trainloader: DataLoader, testloader: DataLoader, epochs: int = 10, lr: float = 0.001,
+    def __init__(self, net, trainloader: DataLoader, testloader: DataLoader=None, epochs: int = 10, lr: float = 0.001,
                  lr_milestones: tuple = (), weight_decay: float = 1e-6):
         self.net = net
         self.trainloader = trainloader
@@ -35,7 +29,7 @@ class VAE_1D_trainer():
         self.train_mu = []
         self.train_var = []
         # 测试时，每个数据的参数
-        self.test_batch_time = []
+        self.test_time = 0.0
 
     def train(self):
         print("starting training VAE with 1-D data...")
@@ -53,8 +47,7 @@ class VAE_1D_trainer():
             epoch_var = 0.0
             count_batch = 0
             epoch_start_time = time.time()
-            for item in self.trainloader:
-                data, _, _ = item
+            for step, (data, label) in enumerate(self.trainloader):
                 optimizer.zero_grad()
                 # 执行的是forward函数 mu:1-D;var:1-D(方差)
                 recon_batch, mu, var = self.net(data)
@@ -100,16 +93,12 @@ class VAE_1D_trainer():
         start_time = time.time()
         with torch.no_grad:
             count_batch = 0
-            for item in self.trainloader:
-                batch_start_time = time.time()
-                data, _, _ = item
+            for step,(data, label) in enumerate(self.trainloader):
                 recon, mu, var = self.net(data)
                 loss = loss_function(recon, data, mu, var)
                 count_batch += 1
-                each_batch_time = time.time() - batch_start_time
-                self.test_batch_time.append(each_batch_time)
-            using_time = start_time - time.time()
-        print("the average test time of each batch:{}".format(using_time / count_batch))
+            self.test_time = start_time - time.time()
+        print("the average test time of each batch:{}".format(self.test_time / count_batch))
 
 
 # Reconstruction + KL divergence losses summed over all elements and batch
