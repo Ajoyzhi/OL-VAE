@@ -12,7 +12,9 @@ def init_log(filepath):
     logger.setLevel(level=logging.DEBUG)
 
     # 将log输出到文件中
-    handler = logging.FileHandler(filepath + real_time + ".log")
+    # 此处显示log文件的名称，去掉filepath就直接在当前目录下生成log文件
+    handler = logging.FileHandler(filepath + "test.log")
+    # handler = logging.FileHandler(filepath + real_time + ".log")
     # 设置等级，不设置默认用上面的输出等级
     # handler.setLevel(logging.INFO)
     # 设置格式 时间-输出内容
