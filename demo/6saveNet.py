@@ -1,6 +1,7 @@
 import torch
 from torch.autograd import Variable
 import matplotlib.pyplot as plt
+import numpy as np
 
 # 1D t0 2D
 x = torch.unsqueeze(torch.linspace(-1, 1, 100), dim=1)
@@ -26,13 +27,29 @@ def save():
         optimizer.step()
 
     # 保存
-    torch.save(net1, 'net_pkl')                    # entire net 'net_pkl'就是网络名或者称为参数名，不是什么类型
-    torch.save(net1.state_dict(), 'net_param.pkl') # entire net parameters
+    #torch.save(net1, 'net_pkl')                    # entire net 'net_pkl'就是网络名或者称为参数名，不是什么类型
+    # torch.save(net1.state_dict(), 'net_param.pkl') # entire net parameters
+    param_dict = net1.state_dict()
+    # print(param_dict.keys())
+    # print(param_dict.values())
+    param_dict1 = net1.state_dict()
+    new_dict = {}
+    for key, value in param_dict.items():
+        othe_value = param_dict1[key]
+        temp = value + othe_value # 可计算
+        new_dict[key] = temp
+
+    print(new_dict)
 
     # 查看网络参数
-    param = list(net1.named_parameters())
+    # param = list(net1.named_parameters())
+    # print(param[0][1])
     # (name,param)
-    print(param)
+    # print(param)
+
+    # 不支持这种方式下对网络参数进行修改
+    # param1 = net1.named_parameters() # tuple
+    # param2 = net1.named_parameters()
 
     # 可视化
     plt.figure(1, figsize=(10, 3))

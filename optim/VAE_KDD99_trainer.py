@@ -8,11 +8,12 @@ from performance.performance import performance
 import time
 from scipy.stats import multivariate_normal
 import numpy as np
+from other.path import Model
 
 # 数据集和损失函数是相关联的，所以必须对不同的损失函数（数据集）建立不同的trainer
 class VAE_Kdd99_trainer():
-    def __init__(self, net, trainloader: DataLoader, testloader: DataLoader, epochs: int = 10, lr: float = 0.001,
-                 lr_milestones: tuple = (), weight_decay: float = 1e-6):
+    def __init__(self, net, trainloader: DataLoader, testloader: DataLoader=None, epochs: int = 10, lr: float = 0.001,
+                 lr_milestones: tuple = (), weight_decay: float = 1e-6, alpha: float=0.5):
         self.net = net
         self.trainloader = trainloader
         self.testloader = testloader
@@ -22,6 +23,7 @@ class VAE_Kdd99_trainer():
         self.milestones = lr_milestones
         # L2正则化的系数
         self.weight_decay = weight_decay
+        self.alpha = alpha
         self.logger = init_log(path.Log_Path, "VAE_KDD99")
 
         self.train_mu = 0.0  # 15维向量
@@ -195,6 +197,28 @@ class VAE_Kdd99_trainer():
 
         self.logger.info("Finishing testing VAE with Kdd99...")
         """
+    """
+        调用该方法时需要创建新的trainloader；net为之前的self.net结构
+    """
+    def update_model(self):
+        # 获取原网络结构的参数。字典类型，key value
+        dict_org = self.net.state_dict()
+        # 使用新的trainloder训练网络
+        self.logger.info("strating updating VAE with new kdd99...")
+        self.train()
+        self.logger.info("finishing updating VAE model.")
+        # 获取更新网络的参数
+        dict_update = self.net.state_dict()
+        # 利用原始参数和更新的参数计算网络权重
+        dict_new = {}
+        for key, org_value in dict_org:
+            # 参数更新公式
+            temp = self.alpha * org_value + (1 - self.alpha) * dict_update[key]
+            # 将更新的参数放入新的字典
+            dict_new[key] = temp
+        torch.save(dict_new, Model + 'net_parm.pth')
+        # 将新参数加载到self.net中
+        self.net.load_stat_dict(torch.load(Model + 'net_parm.pth'))
 
 # Reconstruction + KL divergence losses summed over all elements and batch
 def loss_function(recon_x, x, mu, logvar):
@@ -239,5 +263,3 @@ def prob_avrg(M: int, simple_mu, simple_std, prob_mu, prob_var):
         prob += each_prob
     prob = prob / M
     return prob
-
-
