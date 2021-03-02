@@ -22,3 +22,6 @@ Log_Path = '../other/log/'
 # 图像输出位置
 Picture = '../other/pictures/'
 
+# 网络参数保存位置
+Model = '../other/'
+
