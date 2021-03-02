@@ -22,7 +22,7 @@ class VAE_Kdd99_trainer():
         self.milestones = lr_milestones
         # L2正则化的系数
         self.weight_decay = weight_decay
-        self.logger = init_log(path.Log_Path)
+        self.logger = init_log(path.Log_Path, "VAE_KDD99")
 
         self.train_mu = 0.0  # 15维向量
         self.train_var = 0.0 # 15维向量
@@ -37,13 +37,12 @@ class VAE_Kdd99_trainer():
         self.test_time = 0.0
 
     def train(self):
+        self.logger.info("Starting training VAE with Kdd99...")
         # 设置优化算法
         optimizer = optim.Adam(self.net.parameters(), lr=self.lr, weight_decay=self.weight_decay)
         # 设置学习率的下降区间和速度 gamma为学习率的下降速率
         scheduler = optim.lr_scheduler.MultiStepLR(optimizer, milestones=self.milestones, gamma=0.1)
-        print("Starting training VAE with Kdd99...")
         # 训练
-        self.logger.info("Starting training VAE with Kdd99...")
         start_time = time.time()
         self.net.train()
         # 整体的训练误差
@@ -84,14 +83,12 @@ class VAE_Kdd99_trainer():
         # train_loss就相当于所有迭代所有数据的总误差
         self.logger.info("Training time:{:.3f}\t Avarge loss of each epoch:{:.8f}\t".format(train_time, train_loss))
         self.logger.info("Finish training VAE with Kdd99.")
-        print("Finish training VAE with Kdd99.")
 
     def get_normal_parm(self):
         mu_list = []
         var_list = []
         loss_list = []
 
-        print("Starting getting the mean and variance of normal data...")
         self.logger.info("Starting getting the mean and variance of normal data...")
         start_time = time.time()
         self.net.eval()
@@ -144,7 +141,6 @@ class VAE_Kdd99_trainer():
                          "the using time of getting param is {:.3f}\n"
                          .format(self.threshold, self.train_mu, self.train_var, self.train_loss, using_time))
         self.logger.info("Finish getting parameters.")
-        print("Finish getting parameters.")
 
     """
         测试样本是否正常

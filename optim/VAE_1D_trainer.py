@@ -1,7 +1,8 @@
 import torch
 import torch.optim as optim
-
 from torch.utils.data import DataLoader
+from other.log import init_log
+from other.path import Log_Path
 import time
 """
     对改进的VAE算法和原始VAE算法进行训练
@@ -23,6 +24,7 @@ class VAE_1D_trainer():
         # L2正则化的系数
         self.weight_decay = weight_decay
 
+        self.logger = init_log(Log_Path, "VAE_1D_org")
         # 训练时，平均参数
         self.train_time = []
         self.train_loss = []
@@ -32,7 +34,7 @@ class VAE_1D_trainer():
         self.test_time = 0.0
 
     def train(self):
-        print("starting training original VAE with 1-D data...")
+        self.logger.info("starting training original VAE with 1-D data...")
         # 设置优化算法
         optimizer = optim.Adam(self.net.parameters(), lr=self.lr, weight_decay=self.weight_decay)
         # 设置学习率的下降区间和速度 gamma为学习率的下降速率
@@ -66,9 +68,8 @@ class VAE_1D_trainer():
             epoch_loss /= count_batch
             epoch_mu /= count_batch
             epoch_var /= count_batch
-            print("Epoch{}/{}\t the average loss in each batch:{}\t the average mu in each batch:{}\t"
-                  "the average var in each batch:{}\t"
-                  .format(epoch+1, self.epochs, epoch_loss, epoch_mu, epoch_var))
+            self.logger.info("Epoch{}/{}\t the average loss in each batch:{}\t the average mu in each batch:{}\t"
+                             "the average var in each batch:{}\t".format(epoch+1, self.epochs, epoch_loss, epoch_mu, epoch_var))
             # 显示学习率的变化
             if epoch in self.milestones:
                 print("LR scheduler: new learning rate is %g" % float(scheduler.get_lr()[0]))
@@ -80,13 +81,13 @@ class VAE_1D_trainer():
             self.train_mu.append(epoch_mu)
             self.train_var.append(epoch_var)
             self.train_time.append(epoch_train_time)
-        print("finishing training original VAE with 1-D data.")
+        self.logger.info("finishing training original VAE with 1-D data.")
 
     """
         获取正常数据的测试时间
     """
     def test(self):
-        print("starting getting test time for original VAE...")
+        self.logger.info("starting getting test time for original VAE...")
         self.net.eval()
         start_time = time.time()
         with torch.no_grad():
@@ -96,7 +97,7 @@ class VAE_1D_trainer():
                 loss = loss_function(recon, data, mu, var)
                 count_batch += 1
             self.test_time = time.time() - start_time
-        print("the average test time of each batch:{} for original VAE".format(self.test_time / count_batch))
+        self.logger.info("the average test time of each batch:{} for original VAE".format(self.test_time / count_batch))
 
 # Reconstruction + KL divergence losses summed over all elements and batch
 def loss_function(recon_x, x, mu, var):
