@@ -1,11 +1,12 @@
 import torch
-from torch.autograd import Variable
 import torch.utils.data as Data
 from network.VAE_1D import VAE_1D
 from network.VAE_1D_Online import VAE_Online
 from optim.VAE_1D_trainer import VAE_1D_trainer
 from optim.VAE_1D_Online_trainer import OLVAE_1D_trainer
+from other.path import Picture
 import matplotlib.pyplot as plt
+import  time
 
 # 生成训练数据：高斯分布 + (0,1)均匀分布噪声 100个
 x_train_temp = torch.ones(1000, 1)
@@ -17,7 +18,7 @@ y_train = torch.zeros_like(x_train)
 train_dataset = Data.TensorDataset(x_train, y_train)
 train_loader = Data.DataLoader(
     dataset=train_dataset,
-    batch_size=10,
+    batch_size=100,
     shuffle=True,
     num_workers=0
 )
@@ -76,32 +77,37 @@ ol_train_var = vae_Online_trainer.train_var
 ol_test_time = vae_Online_trainer.test_time
 
 # 画图函数
-def my_plot(loc: int, name: str, org_data, online_data, epoch):
-    my_plt = plt.subplot(loc)
-    line1 = my_plt.plot(range(1, epoch+1), org_data, 'b-')
-    line2 = my_plt.plot(range(1, epoch+1), online_data, 'r--')
+def my_plot(name: str, org_data, online_data, epoch):
+    # 获取本地时间
+    real_time = time.strftime('%Y-%m-%d-%H-%M-%S', time.localtime(time.time()))
+    line1, = plt.plot(range(1, epoch+1), org_data, 'b-', label='origin')
+    line2, = plt.plot(range(1, epoch+1), online_data, 'r--', label='online')
     plt.xlabel('epoch')
     plt.ylabel(name)
-    plt.title(name + 'of original VAE vs. online VAE')
-    my_plt.legend(line1, ('org VAE'))
-    my_plt.legend(line2, ('ol VAE'))
+    plt.title(name + ' of original VAE vs. online VAE')
+    font = {'family':'SimHei',
+             'weight':'normal',
+             'size':15}
+    plt.legend(handles=[line1, line2], prop=font, loc='upper right')
+    plt.savefig(Picture + name + real_time + '.jpg')
+    plt.show()
 
-plt.figure(figsize=(12, 6))
 # 画train_time的图
-my_plot(151, 'train_time', org_train_time, ol_train_time, epoch)
+my_plot('train_time', org_train_time, ol_train_time, epoch)
 # 画 train_loss的图
-my_plot(152, 'train_loss', org_train_loss, ol_train_loss, epoch)
+my_plot('train_loss', org_train_loss, ol_train_loss, epoch)
 # 画train_mu的图
-my_plot(153, 'train_mu', org_train_mu, ol_train_mu, epoch)
+my_plot('train_mu', org_train_mu, ol_train_mu, epoch)
 # 画train_var的图
-my_plot(154, 'train_var', org_train_var, ol_train_var, epoch)
+my_plot('train_var', org_train_var, ol_train_var, epoch)
+
 # 画test_time(一个值使用柱状图表示)
 test_time = [org_test_time, ol_test_time]
 x = ['original VAE', 'online VAE']
-plt.subplot(155)
-plt.bar(x, test_time)
+plt.bar(x[0], height=org_test_time, width=0.5, color='cyan')
+plt.bar(x[1], height=ol_test_time, width=0.5, color='blue')
 plt.xlabel('type')
 plt.ylabel('test time')
 plt.title('test time of original VAE vs. online VAE')
-plt.legend()
+plt.savefig(Picture + 'test_time')
 plt.show()
