@@ -9,3 +9,7 @@ y = 1/torch.sqrt(torch.tensor(2*PI)) * torch.exp(-x.pow(2)/2) + torch.rand(x.siz
 # test ones
 a = torch.ones(10, 1)
 print(a.data.shape)
+
+# test range()
+for i in range(1, 10):
+    print(i)
