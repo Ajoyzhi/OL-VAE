@@ -32,7 +32,7 @@ class VAE_1D_trainer():
         self.test_time = 0.0
 
     def train(self):
-        print("starting training VAE with 1-D data...")
+        print("starting training original VAE with 1-D data...")
         # 设置优化算法
         optimizer = optim.Adam(self.net.parameters(), lr=self.lr, weight_decay=self.weight_decay)
         # 设置学习率的下降区间和速度 gamma为学习率的下降速率
@@ -68,38 +68,35 @@ class VAE_1D_trainer():
             epoch_var /= count_batch
             print("Epoch{}/{}\t the average loss in each batch:{}\t the average mu in each batch:{}\t"
                   "the average var in each batch:{}\t"
-                  .format(epoch, self.epochs, epoch_loss, epoch_mu, epoch_var))
-
-            # 统计参数，以便画图
-            self.train_loss.append(epoch_loss)
-            self.train_mu.append(epoch_mu)
-            self.train_var.append(epoch_var)
-
+                  .format(epoch+1, self.epochs, epoch_loss, epoch_mu, epoch_var))
             # 显示学习率的变化
             if epoch in self.milestones:
                 print("LR scheduler: new learning rate is %g" % float(scheduler.get_lr()[0]))
 
             # 统计每次epoch的训练时间
             epoch_train_time = time.time() - epoch_start_time
+            # 统计参数，以便画图
+            self.train_loss.append(epoch_loss)
+            self.train_mu.append(epoch_mu)
+            self.train_var.append(epoch_var)
             self.train_time.append(epoch_train_time)
-        print("finishing training VAE with 1-D data.")
+        print("finishing training original VAE with 1-D data.")
 
     """
         获取正常数据的测试时间
     """
     def test(self):
-        print("starting getting test time...")
+        print("starting getting test time for original VAE...")
         self.net.eval()
         start_time = time.time()
-        with torch.no_grad:
+        with torch.no_grad():
             count_batch = 0
             for step,(data, label) in enumerate(self.trainloader):
                 recon, mu, var = self.net(data)
                 loss = loss_function(recon, data, mu, var)
                 count_batch += 1
-            self.test_time = start_time - time.time()
-        print("the average test time of each batch:{}".format(self.test_time / count_batch))
-
+            self.test_time = time.time() - start_time
+        print("the average test time of each batch:{} for original VAE".format(self.test_time / count_batch))
 
 # Reconstruction + KL divergence losses summed over all elements and batch
 def loss_function(recon_x, x, mu, var):
