@@ -15,7 +15,7 @@ class VAE_1D(nn.Module):
         self.fc4 = nn.Linear(5, 1)
 
     def encode(self, x):
-        h1 = F.sigmoid(self.fc1(x))
+        h1 = torch.sigmoid(self.fc1(x))
         return self.fc21(h1), self.fc22(h1)
 
     def reparameterize(self, mu, logvar):

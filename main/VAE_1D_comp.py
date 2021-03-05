@@ -50,64 +50,69 @@ plt.scatter(x_test.data.numpy(), x_test.data.numpy(), c=y_test.data.numpy(), s=1
 plt.show()
 """
 
-# 生成网络
+# 生成原始VAE网络
 VAE_1D_net = VAE_1D()
-VAE_Online_net = VAE_Online()
-
 # 训练网络，其实trainer中并未使用testloader
-vae_1D_trainer = VAE_1D_trainer(VAE_1D_net, train_loader)
-vae_Online_trainer = OLVAE_1D_trainer(VAE_1D_net, train_loader)
+vae_1D_trainer = VAE_1D_trainer(VAE_1D_net, train_loader,epochs=20)
 vae_1D_trainer.train()
 vae_1D_trainer.test()
+
+# 生成改进VAE网络
+VAE_Online_net = VAE_Online()
+vae_Online_trainer = OLVAE_1D_trainer(VAE_1D_net, train_loader, epochs=20)
 vae_Online_trainer.train()
 vae_Online_trainer.test()
 
 # 获取数据，并画图
-epoch = vae_1D_trainer.epochs
-org_train_time = vae_1D_trainer.train_time
 org_train_loss = vae_1D_trainer.train_loss
 org_train_mu = vae_1D_trainer.train_mu
 org_train_var = vae_1D_trainer.train_var
+org_train_time = vae_1D_trainer.train_time
 org_test_time = vae_1D_trainer.test_time
 
-ol_train_time = vae_Online_trainer.train_time
 ol_train_loss = vae_Online_trainer.train_loss
 ol_train_mu = vae_Online_trainer.train_mu
 ol_train_var = vae_Online_trainer.train_var
+ol_train_time = vae_Online_trainer.train_time
 ol_test_time = vae_Online_trainer.test_time
 
-# 画图函数
-def my_plot(name: str, org_data, online_data, epoch):
+# 画折线图函数
+def my_plot(org_data, online_data, name: str):
     # 获取本地时间
     real_time = time.strftime('%Y-%m-%d-%H-%M-%S', time.localtime(time.time()))
-    line1, = plt.plot(range(1, epoch+1), org_data, 'b-', label='origin')
-    line2, = plt.plot(range(1, epoch+1), online_data, 'r--', label='online')
-    plt.xlabel('epoch')
+    line1, = plt.plot(range(len(org_data)), org_data, 'b-', label='origin')
+    line2, = plt.plot(range(len(online_data)), online_data, 'r--', label='online')
+    plt.xlabel('batch')
     plt.ylabel(name)
     plt.title(name + ' of original VAE vs. online VAE')
     font = {'family':'SimHei',
              'weight':'normal',
              'size':15}
-    plt.legend(handles=[line1, line2], prop=font, loc='upper right')
-    plt.savefig(Picture + name + real_time + '.jpg')
+    plt.legend(handles=[line1, line2], prop=font) # 不指定位置，则选择不遮挡图像位置
+    plt.savefig(Picture + real_time + name + '.jpg')
     plt.show()
 
-# 画train_time的图
-my_plot('train_time', org_train_time, ol_train_time, epoch)
-# 画 train_loss的图
-my_plot('train_loss', org_train_loss, ol_train_loss, epoch)
-# 画train_mu的图
-my_plot('train_mu', org_train_mu, ol_train_mu, epoch)
-# 画train_var的图
-my_plot('train_var', org_train_var, ol_train_var, epoch)
+# 画柱状图
+def my_bar(y:tuple, name:str):
+    x = ['original VAE', 'online VAE']
+    plt.bar(x[0], height=y[0], width=0.5, color='cyan')
+    plt.bar(x[1], height=y[1], width=0.5, color='blue')
+    plt.xlabel('type')
+    plt.ylabel(name)
+    plt.title(name + ' of original VAE vs. online VAE')
+    real_time = time.strftime('%Y-%m-%d-%H-%M-%S', time.localtime(time.time()))
+    plt.savefig(Picture + real_time + name)
+    plt.show()
 
+# 画 train_loss的图
+my_plot(org_train_loss, ol_train_loss, 'train_loss')
+# 画train_mu的图
+my_plot(org_train_mu, ol_train_mu, 'train_mu')
+# 画train_var的图
+my_plot(org_train_var, ol_train_var, 'train_var')
+# 画train_time
+train_time = (org_train_time, ol_train_time)
+my_bar(train_time, "train time")
 # 画test_time(一个值使用柱状图表示)
-test_time = [org_test_time, ol_test_time]
-x = ['original VAE', 'online VAE']
-plt.bar(x[0], height=org_test_time, width=0.5, color='cyan')
-plt.bar(x[1], height=ol_test_time, width=0.5, color='blue')
-plt.xlabel('type')
-plt.ylabel('test time')
-plt.title('test time of original VAE vs. online VAE')
-plt.savefig(Picture + 'test_time')
-plt.show()
+test_time = (org_test_time, ol_test_time)
+my_bar(test_time, "test time")

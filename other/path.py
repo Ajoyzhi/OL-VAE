@@ -1,4 +1,4 @@
-# main文件所在目录为E:/pycharm/OL_VAE/main
+# main文件所在目录为F:/pycharm/OL_VAE/main
 # kdd99训练集的文件路径
 Train_Src_Path = '../dataset/KDD99/raw/kddcup.data_10_percent_corrected'
 # 数值化的训练数据文件路径

@@ -30,8 +30,8 @@ class OLVAE_1D_trainer():
         self.weight_decay = weight_decay
 
         self.logger = init_log(Log_Path, "VAE_ID_ol")
-        # 训练时，平均参数
-        self.train_time = []
+        # 训练参数
+        self.train_time = 0.0
         self.train_loss = []
         self.train_mu = []
         self.train_var = []
@@ -63,7 +63,12 @@ class OLVAE_1D_trainer():
                 loss.backward()
                 optimizer.step()
                 scheduler.step()
-                # 一次迭代中所有数据的平均误差loss，平均均值mu，平均方差var
+
+                # 记录每个batch中的平均loss、mu、var 共有epoch*count_batch这么多数据
+                self.train_loss.append(loss.mean())
+                self.train_mu.append(mu.mean())
+                self.train_var.append(var.mean())
+                # 一个epoch中所有batch的平均误差loss，平均均值mu，平均方差var之和
                 epoch_loss += loss.mean()
                 epoch_mu += mu.mean()
                 epoch_var += var.mean()
@@ -73,20 +78,16 @@ class OLVAE_1D_trainer():
             epoch_loss /= count_batch
             epoch_mu /= count_batch
             epoch_var /= count_batch
-            self.logger.info("Epoch{}/{}\t the average loss in each batch:{}\t the average mu in each batch:{}\t"
+            # 统计每次epoch的训练时间
+            epoch_train_time = time.time() - epoch_start_time
+            self.logger.info("Epoch{}/{}\t training time：{}\t the average loss in each batch:{}\t the average mu in each batch:{}\t"
                              "the average var in each batch:{}\t"
-                             .format(epoch+1, self.epochs, epoch_loss, epoch_mu, epoch_var))
+                             .format(epoch+1, self.epochs, epoch_train_time, epoch_loss, epoch_mu, epoch_var))
             # 显示学习率的变化
             if epoch in self.milestones:
                  print("LR scheduler: new learning rate is %g" % float(scheduler.get_lr()[0]))
 
-            # 统计每次epoch的训练时间
-            epoch_train_time = time.time() - epoch_start_time
-            # 统计参数，以便画图
-            self.train_loss.append(epoch_loss)
-            self.train_mu.append(epoch_mu)
-            self.train_var.append(epoch_var)
-            self.train_time.append(epoch_train_time)
+        self.train_time = time.time() - start_time
         self.logger.info("finishing training online VAE with 1-D data.")
 
     """
