@@ -30,8 +30,14 @@ class VAE_1D_trainer():
         self.train_loss = []
         self.train_mu = []
         self.train_var = []
+        self.train_logvar = []
+
         # 测试时，每个数据的参数
         self.test_time = 0.0
+        self.test_loss = []
+        self.test_mu = []
+        self.test_var = []
+        self.test_logvar = []
 
     def train(self):
         self.logger.info("starting training original VAE with 1-D data...")
@@ -47,36 +53,41 @@ class VAE_1D_trainer():
             epoch_loss = 0.0
             epoch_mu = 0.0
             epoch_var = 0.0
+            epoch_logvar = 0.0
             count_batch = 0
             epoch_start_time = time.time()
             for step, (data, label) in enumerate(self.trainloader):
                 optimizer.zero_grad()
-                # 执行的是forward函数 mu:1-D;var:1-D(方差)
-                recon_batch, mu, var = self.net(data)
+                # 执行的是forward函数 mu:1-D;logvar:1-D(方差)
+                recon_batch, mu, logvar = self.net(data)
                 # 损失函数必须和网络结构、数据集绑定在一起
-                loss = loss_function(recon_batch, data, mu, var)
+                loss = loss_function(recon_batch, data, mu, logvar)
                 loss.backward()
                 optimizer.step()
                 scheduler.step()
 
                 # 记录每个batch中的平均loss、mu、var 共有epoch*count_batch这么多数据
+                var = torch.exp(logvar)
                 self.train_loss.append(loss.mean())
                 self.train_mu.append(mu.mean())
                 self.train_var.append(var.mean())
+                self.train_logvar.append(logvar.mean())
                 # 一个epoch中每个batch的平均误差loss，平均均值mu，平均方差var之和
                 epoch_loss += loss.mean()
                 epoch_mu += mu.mean()
                 epoch_var += var.mean()
+                epoch_logvar += logvar.mean()
                 count_batch += 1
 
             # 一个epoch中的所有batch的平均值
             epoch_loss /= count_batch
             epoch_mu /= count_batch
             epoch_var /= count_batch
+            epoch_logvar /= count_batch
             # 统计每次epoch的训练时间
             epoch_train_time = time.time() - epoch_start_time
-            self.logger.info("Epoch{}/{}\t training time:{}\t the average loss in each batch:{}\t the average mu in each batch:{}\t"
-                             "the average var in each batch:{}\t".format(epoch+1, self.epochs, epoch_train_time, epoch_loss, epoch_mu, epoch_var))
+            self.logger.info("Epoch{}/{}\t training time:{}\t the average loss in each batch:{}\t the average mu:{}\t"
+                             "the average var:{}\t the average logvar:{}".format(epoch+1, self.epochs, epoch_train_time, epoch_loss, epoch_mu, epoch_var, epoch_logvar))
             # 显示学习率的变化
             if epoch in self.milestones:
                 print("LR scheduler: new learning rate is %g" % float(scheduler.get_lr()[0]))
@@ -87,21 +98,28 @@ class VAE_1D_trainer():
     """
         获取正常数据的测试时间
     """
-    def test(self):
+    def get_normal_data(self):
         self.logger.info("starting getting test time for original VAE...")
         self.net.eval()
         start_time = time.time()
         with torch.no_grad():
             count_batch = 0
-            for step,(data, label) in enumerate(self.trainloader):
-                recon, mu, var = self.net(data)
-                loss = loss_function(recon, data, mu, var)
+            for step,(data, label) in enumerate(self.testloader):
+                recon, mu, logvar = self.net(data)
+                loss = loss_function(recon, data, mu, logvar)
                 count_batch += 1
+
+                # 记录数据
+                var = torch.exp(logvar)
+                self.test_loss.append(loss.mean())
+                self.test_mu.append(mu.mean())
+                self.test_var.append(var.mean())
+                self.test_logvar.append(logvar.mean())
             self.test_time = time.time() - start_time
         self.logger.info("the average test time of each batch:{} for original VAE".format(self.test_time / count_batch))
 
 # Reconstruction + KL divergence losses summed over all elements and batch
-def loss_function(recon_x, x, mu, var):
+def loss_function(recon_x, x, mu, logvar):
     # 累加重构误差
     loss_rec = torch.nn.MSELoss()
     BCE = loss_rec(recon_x, x)
@@ -110,5 +128,5 @@ def loss_function(recon_x, x, mu, var):
     # Kingma and Welling. Auto-Encoding Variational Bayes. ICLR, 2014
     # https://arxiv.org/abs/1312.6114
     # 0.5 * sum(1 + log(sigma^2) - mu^2 - sigma^2)
-    KLD = -0.5 * torch.sum(1 + 2 * torch.log(var) - mu.pow(2) - var)
+    KLD = -0.5 * torch.sum(1 + logvar - mu.pow(2) - torch.exp(logvar))
     return BCE + KLD
