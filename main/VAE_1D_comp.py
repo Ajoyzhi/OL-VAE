@@ -7,7 +7,35 @@ from optim.VAE_1D_Online_trainer import OLVAE_1D_trainer
 from other.path import Picture
 import matplotlib.pyplot as plt
 import time
-import numpy as np
+
+# 画折线图函数
+def my_plot(org_data, online_data, name: str):
+    # 获取本地时间
+    real_time = time.strftime('%Y-%m-%d-%H-%M-%S', time.localtime(time.time()))
+    line1, = plt.plot(range(len(org_data)), org_data, 'b-', label='origin')
+    line2, = plt.plot(range(len(online_data)), online_data, 'r--', label='online')
+    plt.xlabel('batch')
+    plt.ylabel(name)
+    plt.title(name + ' of original VAE vs. online VAE')
+    font = {'family':'SimHei',
+             'weight':'normal',
+             'size':15}
+    plt.legend(handles=[line1, line2], prop=font) # 不指定位置，则选择不遮挡图像位置
+    plt.savefig(Picture + real_time + name + '.jpg')
+    plt.show()
+
+# 画柱状图 柱间间距如何调整？？
+def my_bar(y:tuple, name:str):
+    bar_width = 0.1
+    x = ['original VAE', 'online VAE']
+    plt.bar(x[0], height=y[0], width=bar_width, hatch='x', label="origin", edgecolor='k')
+    plt.bar(x[1], height=y[1], width=bar_width, hatch='+', label="online", edgecolor='k')
+    plt.ylabel(name)
+    plt.title(name + ' of original VAE vs. online VAE')
+    plt.legend()
+    real_time = time.strftime('%Y-%m-%d-%H-%M-%S', time.localtime(time.time()))
+    plt.savefig(Picture + real_time + name)
+    plt.show()
 
 # 生成训练数据：高斯分布 + (0,1)均匀分布噪声 100个
 x_train_temp = torch.ones(1000, 1)
@@ -76,35 +104,6 @@ ol_train_mu = vae_Online_trainer.train_mu
 ol_train_var = vae_Online_trainer.train_var
 ol_train_time = vae_Online_trainer.train_time
 ol_test_time = vae_Online_trainer.test_time
-
-# 画折线图函数
-def my_plot(org_data, online_data, name: str):
-    # 获取本地时间
-    real_time = time.strftime('%Y-%m-%d-%H-%M-%S', time.localtime(time.time()))
-    line1, = plt.plot(range(len(org_data)), org_data, 'b-', label='origin')
-    line2, = plt.plot(range(len(online_data)), online_data, 'r--', label='online')
-    plt.xlabel('batch')
-    plt.ylabel(name)
-    plt.title(name + ' of original VAE vs. online VAE')
-    font = {'family':'SimHei',
-             'weight':'normal',
-             'size':15}
-    plt.legend(handles=[line1, line2], prop=font) # 不指定位置，则选择不遮挡图像位置
-    # plt.savefig(Picture + real_time + name + '.jpg')
-    plt.show()
-
-# 画柱状图 柱间间距如何调整？？
-def my_bar(y:tuple, name:str):
-    bar_width = 0.1
-    x = ['original VAE', 'online VAE']
-    plt.bar(x[0], height=y[0], width=bar_width, hatch='x', label="origin", edgecolor='k')
-    plt.bar(x[1], height=y[1], width=bar_width, hatch='+', label="online", edgecolor='k')
-    plt.ylabel(name)
-    plt.title(name + ' of original VAE vs. online VAE')
-    plt.legend()
-    real_time = time.strftime('%Y-%m-%d-%H-%M-%S', time.localtime(time.time()))
-    # plt.savefig(Picture + real_time + name)
-    plt.show()
 
 # 画 train_loss的图
 my_plot(org_train_loss, ol_train_loss, 'train_loss')
