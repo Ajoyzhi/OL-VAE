@@ -6,7 +6,8 @@ from optim.VAE_1D_trainer import VAE_1D_trainer
 from optim.VAE_1D_Online_trainer import OLVAE_1D_trainer
 from other.path import Picture
 import matplotlib.pyplot as plt
-import  time
+import time
+import numpy as np
 
 # 生成训练数据：高斯分布 + (0,1)均匀分布噪声 100个
 x_train_temp = torch.ones(1000, 1)
@@ -53,7 +54,7 @@ plt.show()
 # 生成原始VAE网络
 VAE_1D_net = VAE_1D()
 # 训练网络，其实trainer中并未使用testloader
-vae_1D_trainer = VAE_1D_trainer(VAE_1D_net, train_loader,epochs=20)
+vae_1D_trainer = VAE_1D_trainer(VAE_1D_net, train_loader, epochs=20)
 vae_1D_trainer.train()
 vae_1D_trainer.test()
 
@@ -89,19 +90,20 @@ def my_plot(org_data, online_data, name: str):
              'weight':'normal',
              'size':15}
     plt.legend(handles=[line1, line2], prop=font) # 不指定位置，则选择不遮挡图像位置
-    plt.savefig(Picture + real_time + name + '.jpg')
+    # plt.savefig(Picture + real_time + name + '.jpg')
     plt.show()
 
-# 画柱状图
+# 画柱状图 柱间间距如何调整？？
 def my_bar(y:tuple, name:str):
+    bar_width = 0.1
     x = ['original VAE', 'online VAE']
-    plt.bar(x[0], height=y[0], width=0.5, color='cyan')
-    plt.bar(x[1], height=y[1], width=0.5, color='blue')
-    plt.xlabel('type')
+    plt.bar(x[0], height=y[0], width=bar_width, hatch='x', label="origin", edgecolor='k')
+    plt.bar(x[1], height=y[1], width=bar_width, hatch='+', label="online", edgecolor='k')
     plt.ylabel(name)
     plt.title(name + ' of original VAE vs. online VAE')
+    plt.legend()
     real_time = time.strftime('%Y-%m-%d-%H-%M-%S', time.localtime(time.time()))
-    plt.savefig(Picture + real_time + name)
+    # plt.savefig(Picture + real_time + name)
     plt.show()
 
 # 画 train_loss的图
