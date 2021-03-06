@@ -17,6 +17,7 @@ class VAE_Online(nn.Module):
         h2 = self.fc2(h1) # 1-dim
 
         # 计算参数mu和sigma^2
+        # 公式计算没有问题，但是维度问题可以调整
         w1 = self.fc1.weight # 5 * 1
         w2 = self.fc2.weight # 1 * 5
         dh1 = h1.transpose(0,1) * (1 - h1) * w1 # 5 * 1 = (1*5) * (5*1) * (5*1)
@@ -28,14 +29,15 @@ class VAE_Online(nn.Module):
 
         return mu, var
 
-    def reparameterize(self, mu, logvar):
-        std = torch.exp(0.5 * logvar)
+    def reparameterize(self, mu, var):
+        std = torch.sqrt(var)
         # Ajoy 生成与std大小一致的服从标准正态分布的数据 epsilon
         eps = torch.randn_like(std)
         return mu + eps*std
 
     def decode(self, z):
-        h3 = F.relu(self.fc3(z))
+        # encoder和decoder完全对称的结构
+        h3 = self.fc3(z)
         return torch.sigmoid(self.fc4(h3))
 
     def forward(self, x):

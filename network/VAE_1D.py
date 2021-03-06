@@ -25,7 +25,8 @@ class VAE_1D(nn.Module):
         return mu + eps*std
 
     def decode(self, z):
-        h3 = F.relu(self.fc3(z))
+        # encoder和decoder完全对称的结构
+        h3 = self.fc3(z)
         return torch.sigmoid(self.fc4(h3))
 
     def forward(self, x):
