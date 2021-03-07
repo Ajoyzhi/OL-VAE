@@ -45,7 +45,8 @@ train_loader = Data.DataLoader(
     dataset=train_dataset,
     batch_size=100,
     shuffle=True,
-    num_workers=0
+    num_workers=0,
+    drop_last=False
 )
 # 加入测试数据，带噪声的数据
 x_test_temp = torch.ones(500, 1)
@@ -61,6 +62,7 @@ test_loader = Data.DataLoader(
     shuffle=True,
     num_workers=0
 )
+
 # 生成原始VAE网络
 VAE_1D_net = VAE_1D()
 # 训练网络，其实trainer中并未使用testloader
@@ -70,7 +72,7 @@ vae_1D_trainer.get_normal_data()
 
 # 生成改进VAE网络
 VAE_Online_net = VAE_Online()
-vae_Online_trainer = OLVAE_1D_trainer(VAE_1D_net, train_loader, test_loader, epochs=30)
+vae_Online_trainer = OLVAE_1D_trainer(VAE_Online_net, train_loader, test_loader, epochs=30)
 vae_Online_trainer.train()
 vae_Online_trainer.get_normal_data()
 
