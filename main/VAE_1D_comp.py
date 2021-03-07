@@ -70,10 +70,10 @@ vae_1D_trainer.get_normal_data()
 
 # 生成改进VAE网络
 VAE_Online_net = VAE_Online()
-vae_Online_trainer = OLVAE_1D_trainer(VAE_1D_net, train_loader, test_loader, epochs=30)
+vae_Online_trainer = OLVAE_1D_trainer(VAE_Online_net, train_loader, test_loader, epochs=30)
 vae_Online_trainer.train()
 vae_Online_trainer.get_normal_data()
-
+"""
 # 训练过程参数
 org_train_loss = vae_1D_trainer.train_loss
 org_train_mu = vae_1D_trainer.train_mu
@@ -105,6 +105,7 @@ real_time = time.strftime('%Y-%m-%d-%H-%M-%S', time.localtime(time.time()))
 plt.savefig(Picture + real_time + "train")
 plt.show()
 plt.close()
+"""
 
 # 测试数据参数
 org_train_time = vae_1D_trainer.train_time
