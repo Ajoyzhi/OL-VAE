@@ -71,7 +71,7 @@ class OLVAE_1D_trainer():
             epoch_loss /= count_batch
             # 统计每次epoch的训练时间
             epoch_train_time = time.time() - epoch_start_time
-            self.logger.info("Epoch{}/{}\t training time：{}\t the average loss in each batch:{}\t "
+            self.logger.info("Epoch{}/{}\t training time:{}\t the average loss in each batch:{}\t "
                              .format(epoch+1, self.epochs, epoch_train_time, epoch_loss))
             # 显示学习率的变化
             if epoch in self.milestones:
@@ -132,4 +132,4 @@ def loss_function(recon_x, x, h2):
 
 def normal_pdf(x):
     result = 1/torch.sqrt(torch.tensor(2*math.pi)) * torch.exp(-x*x/2)
-    return  result
+    return result
