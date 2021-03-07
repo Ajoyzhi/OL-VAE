@@ -92,31 +92,24 @@ class OLVAE_1D_trainer():
             count_batch = 0
             for step, (data, label) in enumerate(self.testloader):
                 # batch=1，即参数为每个数据的参数
-                h1, h2, recon = self.net(data)
+                h1, h2, recon = self.net(data) # h1:1*5,h2:1*1
                 loss = loss_function(recon, data, h2)
                 count_batch += 1
-                """
-                # 计算参数mu和sigma^2
-                # 公式计算没有问题，但是维度问题可以调整
-                w1 = self.fc1.weight # 5 * 1
-                w2 = self.fc2.weight # 1 * 5
-                dh1 = h1.transpose(0,1) * (1 - h1) * w1 # 5 * 1 = (1*5) * (5*1) * (5*1)
-                dencoder = w2 * dh1 # 1 * 1 = (1*5) * (5*1)
-                ddencoder = w2 * w1 * dh1.transpose(0,1) * (1 - 2*h1) # 1 * 1=(1*5)*(5*1)*(1*5)*(5*1)
-                same = h2 / (dencoder.pow(2)-ddencoder * h2)
-                mu = x + dencoder * same
-                var = h2 * same # sigma^2
-                return mu, var
-                """
+
                 # 公式计算均值和方差
                 w1 = self.net.fc1.weight # 5*1
                 w2 = self.net.fc2.weight # 1*5
-                dh1 = h1.transpose(0, 1) * (1 - h1) * w1 # 5*1=(1*5)*(5*1)*(5*1)
-                dencoder = w2 * dh1 # 1*1=(1*5)*(5*1)
-                ddencoder = w2 * w1 * dh1.transpose(0, 1) * (1 - 2*h1)# 1*1=(1*5)*(5*1)*(1*5)*(5*1)
+                dh1_tmp = h1.mm(torch.transpose((1 - h1), 0, 1)) # (1*1)=(1*5)*(5*1)
+                dh1 = w1.mm(dh1_tmp) # (5*1)=(5*1)*(1*1)
+                dencoder = w2.mm(dh1) # (1*1)=(1*5)*(5*1)
+
+                dde_tmp1 = w2.mm(w1) # (1*1)=(1*5)*(5*1)
+                dde_tmp2 = dde_tmp1.mm(dh1.transpose(0, 1)) # (1*5)=(1*1)*(1*5)
+                ddencoder = dde_tmp2.mm(torch.transpose((1 - 2*h1), 0, 1))# 1*1=(1*5)*(5*1)
+
                 same = h2 / (dencoder.pow(2)-ddencoder * h2)
                 mu = data + dencoder * same
-                var = h2 * same # sigma^2
+                var = h2 * same  # sigma^2
 
                 # 记录数据
                 logvar = torch.log(var)
@@ -138,5 +131,5 @@ def loss_function(recon_x, x, h2):
     return recon_x + recon_h2
 
 def normal_pdf(x):
-    result = 1/math.sqrt(2*math.pi)*math.exp(-x*x/2)
+    result = 1/torch.sqrt(torch.tensor(2*math.pi)) * torch.exp(-x*x/2)
     return  result

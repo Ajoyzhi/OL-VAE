@@ -13,7 +13,7 @@ class VAE_Online(nn.Module):
         self.fc4 = nn.Linear(5, 1)
 
     def encode(self, x):
-        h1 = F.sigmoid(self.fc1(x)) # 5 * 1
+        h1 = torch.sigmoid(self.fc1(x)) # 5 * 1
         h2 = self.fc2(h1) # 1-dim
         return h1, h2
 

@@ -10,8 +10,8 @@ import time
 
 # 画折线图函数
 def my_plot(org_data, online_data, name: str):
-    line1, = plt.plot(range(len(org_data)), org_data, 'k*', label='origin')
-    line2, = plt.plot(range(len(online_data)), online_data, 'k--', label='online')
+    line1, = plt.plot(range(len(org_data)), org_data, 'b-', label='origin')
+    line2, = plt.plot(range(len(online_data)), online_data, 'r--', label='online')
     plt.xlabel('batch')
     plt.ylabel(name)
     plt.title(name + ' of original VAE vs. online VAE')
@@ -48,7 +48,7 @@ train_loader = Data.DataLoader(
     num_workers=0
 )
 # 加入测试数据，带噪声的数据
-x_test_temp = torch.ones(500, 1)
+x_test_temp = torch.ones(50, 1)
 x_test_normal = torch.normal(x_test_temp, 2)
 x_test_noise = torch.rand_like(x_test_normal)
 x_test = x_test_normal + x_test_noise
@@ -64,48 +64,15 @@ test_loader = Data.DataLoader(
 # 生成原始VAE网络
 VAE_1D_net = VAE_1D()
 # 训练网络，其实trainer中并未使用testloader
-vae_1D_trainer = VAE_1D_trainer(VAE_1D_net, train_loader, test_loader, epochs=30)
+vae_1D_trainer = VAE_1D_trainer(VAE_1D_net, train_loader, test_loader, epochs=50)
 vae_1D_trainer.train()
 vae_1D_trainer.get_normal_data()
 
 # 生成改进VAE网络
 VAE_Online_net = VAE_Online()
-vae_Online_trainer = OLVAE_1D_trainer(VAE_Online_net, train_loader, test_loader, epochs=30)
+vae_Online_trainer = OLVAE_1D_trainer(VAE_Online_net, train_loader, test_loader, epochs=50)
 vae_Online_trainer.train()
 vae_Online_trainer.get_normal_data()
-"""
-# 训练过程参数
-org_train_loss = vae_1D_trainer.train_loss
-org_train_mu = vae_1D_trainer.train_mu
-org_train_var = vae_1D_trainer.train_var
-org_train_logvar = vae_1D_trainer.train_logvar
-
-ol_train_loss = vae_Online_trainer.train_loss
-ol_train_mu = vae_Online_trainer.train_mu
-ol_train_var = vae_Online_trainer.train_var
-ol_train_logvar = vae_Online_trainer.train_logvar
-
-# 将所有图放于一张图表中
-plt.figure(figsize=(9.0, 9.0), dpi=100)
-# 画 train_loss的图
-ax11 = plt.subplot(221)
-my_plot(org_train_loss, ol_train_loss, 'train loss')
-# 画train_mu的图
-ax12 = plt.subplot(222)
-my_plot(org_train_mu, ol_train_mu, 'train mu')
-# 画train_var的图
-ax13 = plt.subplot(223)
-my_plot(org_train_var, ol_train_var, 'train var')
-# 画train_logvar的图
-ax14 = plt.subplot(224)
-my_plot(org_train_logvar, ol_train_logvar,'train logvar')
-
-# 保存图
-real_time = time.strftime('%Y-%m-%d-%H-%M-%S', time.localtime(time.time()))
-plt.savefig(Picture + real_time + "train")
-plt.show()
-plt.close()
-"""
 
 # 测试数据参数
 org_train_time = vae_1D_trainer.train_time
