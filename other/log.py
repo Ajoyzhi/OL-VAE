@@ -4,7 +4,7 @@ import time
 
 def init_log(filepath, name):
     # 获取本地时间
-    real_time = time.strftime('%Y-%m-%d-%H-%M', time.localtime(time.time()))
+    real_time = time.strftime('%Y-%m-%d-%H-%M-%S', time.localtime(time.time()))
     # 为你的log起个名字
     logger = logging.getLogger(__name__)
     # 设置输出等级，debug<info<warning等

@@ -38,9 +38,11 @@ class test_VAE_1D():
         self.ol_test_mu = None
         self.ol_test_var = None
         self.ol_test_logvar = None
+        self.param = None
 
-        # 保存参数 精确到分钟
-        self.logger = init_log(Test_Log_Path,"test_VAE_1D")
+        # 保存参数
+        # self.logger = init_log(Test_Log_Path,"test_VAE_1D")
+        # 将数据输入到文件中
 
     # 生成训练数据和测试数据，并生成loader
     def get_dataloader(self):
@@ -104,7 +106,11 @@ class test_VAE_1D():
 
     # 画对比参数的图
     def plot_fig(self):
-        plt.figure(figsize=(25, 16), dpi=100)
+        fig = plt.figure(figsize=(25, 16), dpi=100)
+        # 将相关参数写到figure_titlte中
+        self.param = "N(" + str(self.mu) +"," + str(self.std) + ")+epoch:" + str(self.epoch) + "+train_num:" + str(self.train_num) + "+test_num:" + str(self.test_num)
+        fig.suptitle(self.param)
+        fig.subplots_adjust(hspace=0.4)
         # 画test_loss的图
         ax21 = plt.subplot(231)
         my_plot(self.org_test_loss, self.ol_test_loss, "test loss")
@@ -129,23 +135,31 @@ class test_VAE_1D():
             my_plot(self.org_test_logvar, self.ol_test_logvar, "test logvar")
 
         # 保存图
-        real_time = time.strftime('%Y-%m-%d-%H-%M', time.localtime(time.time()))
+        real_time = time.strftime('%Y-%m-%d-%H-%M-%S', time.localtime(time.time()))
         plt.savefig(Picture + real_time + "test_VAE_1D")
         plt.show()
         plt.close()
 
     # 保存数据
     def save_data(self):
-        self.logger.info("origin train time:", self.org_train_time)
-        self.logger.info("online train time:", self.ol_train_time)
-        self.logger.info("origin test time:", self.org_test_time)
-        self.logger.info("online test time:", self.ol_test_time)
-        self.logger.info("origin test mu:", self.org_test_mu)
-        self.logger.info("online test mu:", self.ol_test_mu)
-        self.logger.info("origin test var:", self.org_test_var)
-        self.logger.info("online test var:", self.ol_test_var)
-        self.logger.info("origin test logvar:", self.org_test_logvar)
-        self.logger.info("online test logvar:", self.ol_test_logvar)
+        real_time = time.strftime('%Y-%m-%d-%H-%M-%S', time.localtime(time.time()))
+        vae_test_file = open(Test_Log_Path + "test_VAE_1D.txt", "a")
+        vae_test_file.write(real_time + "\n")
+        vae_test_file.write(self.param)
+        # 时间保存
+        vae_test_file.write("\norigin train time:\n" + str(self.org_train_time))
+        vae_test_file.write("\nonline train time:\n" + str(self.ol_train_time))
+        vae_test_file.write("\norigin test time:\n" + str(self.org_test_time))
+        vae_test_file.write("\nonline test time:\n" + str(self.ol_test_time))
+        # list保存
+        list_to_file(self.org_test_mu, vae_test_file, "origin test mu:")
+        list_to_file(self.ol_test_mu, vae_test_file, "online test mu:")
+        list_to_file(self.org_test_var, vae_test_file, "origin test var:")
+        list_to_file(self.ol_test_var, vae_test_file, "online test var:")
+        list_to_file(self.org_test_logvar, vae_test_file, "origin test logvar:")
+        list_to_file(self.ol_test_logvar, vae_test_file, "online test logvar:")
+
+        vae_test_file.close()
 
 
 def my_plot(org_data, online_data, name:str):
@@ -153,6 +167,7 @@ def my_plot(org_data, online_data, name:str):
     plt.scatter(range(len(online_data)), online_data, marker='o', color='w', s=40, label='online', edgecolors='b')
     plt.xlabel('batch')
     plt.ylabel(name)
+    # plt.ylim((-3, 3))
     plt.title(name + ' of original VAE vs. online VAE')
     plt.legend()
 
@@ -168,6 +183,14 @@ def my_bar(y:tuple, name:str):
     plt.title(name + ' of original VAE vs. online VAE')
     plt.legend()
 
+def list_to_file(data:list, filename, dataname:str):
+    count = 0
+    filename.write("\n" + dataname + ":\n")
+    for item in data:
+        filename.write(str(item.data))
+        count += 1
+        if count % 20 == 0:
+            filename.write("\n")
 """
 # 计算测试数据的平均值
 mean_org_test_loss = np.array(vae_1D_trainer.test_loss).mean()

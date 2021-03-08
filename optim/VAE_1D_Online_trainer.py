@@ -109,7 +109,7 @@ class OLVAE_1D_trainer():
 
                 same = h2 / (dencoder.pow(2)-ddencoder * h2)
                 mu = data + dencoder * same
-                var = h2 * same  # sigma^2
+                var = abs(h2 * same)  # sigma^2
 
                 # 记录数据
                 logvar = torch.log(var)
