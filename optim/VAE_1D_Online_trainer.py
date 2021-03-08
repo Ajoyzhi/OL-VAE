@@ -7,8 +7,7 @@ from other.path import Log_Path
 from performance.performance import performance
 import time
 import numpy as np
-import matplotlib.pyplot as plt
-
+import math
 """
     对改进的VAE算法和原始VAE算法进行训练
     输入：1-D数据
@@ -32,10 +31,6 @@ class OLVAE_1D_trainer():
         self.logger = init_log(Log_Path, "VAE_ID_ol")
         # 训练参数（多组参数）
         self.train_time = 0.0
-        self.train_loss = []
-        self.train_mu = []
-        self.train_var = []
-        self.train_logvar = []
 
         # 测试时所有数据的总测试时间
         self.test_time = 0.0
@@ -56,44 +51,28 @@ class OLVAE_1D_trainer():
         for epoch in range(self.epochs):
             # 训练过程
             epoch_loss = 0.0
-            epoch_mu = 0.0
-            epoch_var = 0.0
-            epoch_logvar = 0.0
             count_batch = 0
             epoch_start_time = time.time()
             for step, (data, label) in enumerate(self.trainloader):
                 optimizer.zero_grad()
-                # 执行的是forward函数 mu:1-D;var:1-D(方差)
-                recon_batch, mu, var = self.net(data)
+                # 执行的是forward函数 h1:5*1,h2:1*1
+                h1, h2, recon_batch = self.net(data)
                 # 损失函数必须和网络结构、数据集绑定在一起
-                loss = loss_function(recon_batch, data, mu, var)
+                loss = loss_function(recon_batch, data, h2)
                 loss.backward()
                 optimizer.step()
                 scheduler.step()
 
-                # 记录每个batch中的平均loss、mu、var 共有epoch*count_batch这么多数据
-                logvar = torch.log(var)
-                self.train_loss.append(loss.mean())
-                self.train_mu.append(mu.mean())
-                self.train_var.append(var.mean())
-                self.train_logvar.append(logvar.mean())
-                # 一个epoch中所有batch的平均误差loss，平均均值mu，平均方差var之和
+                # 一个epoch中所有batch的平均误差loss
                 epoch_loss += loss.mean()
-                epoch_mu += mu.mean()
-                epoch_var += var.mean()
-                epoch_logvar += logvar.mean()
                 count_batch += 1
 
             # 一个epoch中的所有batch的平均值
             epoch_loss /= count_batch
-            epoch_mu /= count_batch
-            epoch_var /= count_batch
-            epoch_logvar /= count_batch
             # 统计每次epoch的训练时间
             epoch_train_time = time.time() - epoch_start_time
-            self.logger.info("Epoch{}/{}\t training time：{}\t the average loss in each batch:{}\t the average mu:{}\t"
-                             "the average var:{}\t the average logvar:{}"
-                             .format(epoch+1, self.epochs, epoch_train_time, epoch_loss, epoch_mu, epoch_var, epoch_logvar))
+            self.logger.info("Epoch{}/{}\t training time:{}\t the average loss in each batch:{}\t "
+                             .format(epoch+1, self.epochs, epoch_train_time, epoch_loss))
             # 显示学习率的变化
             if epoch in self.milestones:
                  print("LR scheduler: new learning rate is %g" % float(scheduler.get_lr()[0]))
@@ -113,9 +92,24 @@ class OLVAE_1D_trainer():
             count_batch = 0
             for step, (data, label) in enumerate(self.testloader):
                 # batch=1，即参数为每个数据的参数
-                recon, mu, var = self.net(data)
-                loss = loss_function(recon, data, mu, var)
+                h1, h2, recon = self.net(data) # h1:1*5,h2:1*1
+                loss = loss_function(recon, data, h2)
                 count_batch += 1
+
+                # 公式计算均值和方差
+                w1 = self.net.fc1.weight # 5*1
+                w2 = self.net.fc2.weight # 1*5
+                dh1_tmp = h1.mm(torch.transpose((1 - h1), 0, 1)) # (1*1)=(1*5)*(5*1)
+                dh1 = w1.mm(dh1_tmp) # (5*1)=(5*1)*(1*1)
+                dencoder = w2.mm(dh1) # (1*1)=(1*5)*(5*1)
+
+                dde_tmp1 = w2.mm(w1) # (1*1)=(1*5)*(5*1)
+                dde_tmp2 = dde_tmp1.mm(dh1.transpose(0, 1)) # (1*5)=(1*1)*(1*5)
+                ddencoder = dde_tmp2.mm(torch.transpose((1 - 2*h1), 0, 1))# 1*1=(1*5)*(5*1)
+
+                same = h2 / (dencoder.pow(2)-ddencoder * h2)
+                mu = data + dencoder * same
+                var = h2 * same  # sigma^2
 
                 # 记录数据
                 logvar = torch.log(var)
@@ -127,15 +121,15 @@ class OLVAE_1D_trainer():
             self.test_time = time.time() - start_time
         self.logger.info("the average test time of each batch:{} for online VAE".format(self.test_time/count_batch))
 
-# Reconstruction + KL divergence losses summed over all elements and batch
-def loss_function(recon_x, x, mu, var):
+def loss_function(recon_x, x, h2):
     # 累加重构误差
-    loss_rec = torch.nn.MSELoss()
-    BCE = loss_rec(recon_x, x)
-    # BCE = F.binary_cross_entropy(recon_x, x.view(-1, 15), reduction='sum')
-    # see Appendix B from VAE paper:
-    # Kingma and Welling. Auto-Encoding Variational Bayes. ICLR, 2014
-    # https://arxiv.org/abs/1312.6114
-    # 0.5 * sum(1 + log(sigma^2) - mu^2 - sigma^2)
-    KLD = -0.5 * torch.sum(1 + torch.log(var) - mu.pow(2) - var)
-    return BCE + KLD
+    loss = torch.nn.MSELoss()
+    recon_x = loss(recon_x, x)
+    # 计算中间变量与标准正态分布的误差
+    normal = normal_pdf(x)
+    recon_h2 = loss(h2, normal)
+    return recon_x + recon_h2
+
+def normal_pdf(x):
+    result = 1/torch.sqrt(torch.tensor(2*math.pi)) * torch.exp(-x*x/2)
+    return result

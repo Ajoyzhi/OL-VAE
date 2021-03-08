@@ -19,19 +19,16 @@ for i in range(1, 10):
     print(i)
 """
 # test plot
-x = [1,2,3,4,5,6,7,8,9,10]
-y1 = [10,9,8,7,6,5,4,3,2,1]
-y2 = [1,2,3,4,5,6,7,8,9,10]
-# my_font=font_manager.FontProperties(fname=r"c:\windows\fonts\simsun.ttc",size=30)
-# plt.xlabel(u'X轴',fontproperties=my_font)
-# plt.ylabel(u'Y轴',fontproperties=my_font)
-A, =plt.plot(x, y1, 'b-', linewidth=0.5, label='org')
-B, =plt.plot(x, y2, 'r--', linewidth=0.5, label='ol')
-font1={'family':'SimHei',
-       'weight':'normal',
-       'size':15,}
-legend=plt.legend(handles=[A, B], prop=font1, loc='upper right')
-plt.show()
+def my_plot(org_data, online_data, name: str):
+    line1, = plt.plot(range(len(org_data)), org_data, 'b-', label='origin')
+    line2, = plt.plot(range(len(online_data)), online_data, 'r--', label='online')
+    plt.xlabel('batch')
+    plt.ylabel(name)
+    plt.title(name + ' of original VAE vs. online VAE')
+    font = {'family':'SimHei',
+             'weight':'normal',
+             'size':15}
+    plt.legend(handles=[line1, line2], prop=font) # 不指定位置，则选择不遮挡图像位置
 """
 """
 # test bar

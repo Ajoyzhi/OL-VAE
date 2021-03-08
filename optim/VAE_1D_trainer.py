@@ -27,10 +27,6 @@ class VAE_1D_trainer():
         self.logger = init_log(Log_Path, "VAE_1D_org")
         # 训练参数
         self.train_time = 0.0 # 只获取整个训练时间
-        self.train_loss = []
-        self.train_mu = []
-        self.train_var = []
-        self.train_logvar = []
 
         # 测试时，每个数据的参数
         self.test_time = 0.0
@@ -51,9 +47,6 @@ class VAE_1D_trainer():
         for epoch in range(self.epochs):
             # 训练过程
             epoch_loss = 0.0
-            epoch_mu = 0.0
-            epoch_var = 0.0
-            epoch_logvar = 0.0
             count_batch = 0
             epoch_start_time = time.time()
             for step, (data, label) in enumerate(self.trainloader):
@@ -66,28 +59,16 @@ class VAE_1D_trainer():
                 optimizer.step()
                 scheduler.step()
 
-                # 记录每个batch中的平均loss、mu、var 共有epoch*count_batch这么多数据
-                var = torch.exp(logvar)
-                self.train_loss.append(loss.mean())
-                self.train_mu.append(mu.mean())
-                self.train_var.append(var.mean())
-                self.train_logvar.append(logvar.mean())
                 # 一个epoch中每个batch的平均误差loss，平均均值mu，平均方差var之和
                 epoch_loss += loss.mean()
-                epoch_mu += mu.mean()
-                epoch_var += var.mean()
-                epoch_logvar += logvar.mean()
                 count_batch += 1
 
             # 一个epoch中的所有batch的平均值
             epoch_loss /= count_batch
-            epoch_mu /= count_batch
-            epoch_var /= count_batch
-            epoch_logvar /= count_batch
             # 统计每次epoch的训练时间
             epoch_train_time = time.time() - epoch_start_time
-            self.logger.info("Epoch{}/{}\t training time:{}\t the average loss in each batch:{}\t the average mu:{}\t"
-                             "the average var:{}\t the average logvar:{}".format(epoch+1, self.epochs, epoch_train_time, epoch_loss, epoch_mu, epoch_var, epoch_logvar))
+            self.logger.info("Epoch{}/{}\t training time:{}\t the average loss in each batch:{}\t"
+                             .format(epoch+1, self.epochs, epoch_train_time, epoch_loss))
             # 显示学习率的变化
             if epoch in self.milestones:
                 print("LR scheduler: new learning rate is %g" % float(scheduler.get_lr()[0]))

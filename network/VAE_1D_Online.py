@@ -13,6 +13,7 @@ class VAE_Online(nn.Module):
         self.fc4 = nn.Linear(5, 1)
 
     def encode(self, x):
+<<<<<<< HEAD
         h1 = torch.sigmoid(self.fc1(x)) # batch*5
         # print("h1_size:", h1.shape)
         h2 = self.fc2(h1) # batch*1
@@ -51,12 +52,24 @@ class VAE_Online(nn.Module):
         return mu + eps*std
 
     def decode(self, z):
+=======
+        h1 = torch.sigmoid(self.fc1(x)) # 5 * 1
+        h2 = self.fc2(h1) # 1-dim
+        return h1, h2
+
+    def decode(self, h2):
+>>>>>>> mu_var_in_test
         # encoder和decoder完全对称的结构
-        h3 = self.fc3(z)
+        h3 = self.fc3(h2)
         return torch.sigmoid(self.fc4(h3))
 
     def forward(self, x):
+<<<<<<< HEAD
         # print("X_SIZE:", x.data.shape)# batch * 1
         mu, var = self.encode(x.view(-1, 1))
         z = self.reparameterize(mu, var)
         return self.decode(z), mu, var
+=======
+        h1, h2 = self.encode(x.view(-1, 1))
+        return h1, h2, self.decode(h2)
+>>>>>>> mu_var_in_test
