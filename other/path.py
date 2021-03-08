@@ -18,7 +18,8 @@ Test_Feature_Path =  '../dataset/KDD99/raw/corrected_feature.cvs'
 Test_Des_Path = '../dataset/KDD99/raw/corrected_destination.cvs'
 
 # log输出位置
-Log_Path = '../other/log/'
+Train_Log_Path = '../other/log/train/'
+Test_Log_Path = '../other/log/test/'
 # 图像输出位置
 Picture = '../other/pictures/'
 

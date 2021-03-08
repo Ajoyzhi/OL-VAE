@@ -3,7 +3,7 @@ import torch.optim as optim
 
 from torch.utils.data import DataLoader
 from other.log import init_log
-from other.path import Log_Path
+from other.path import Train_Log_Path
 from performance.performance import performance
 import time
 import numpy as np
@@ -28,7 +28,7 @@ class OLVAE_1D_trainer():
         # L2正则化的系数
         self.weight_decay = weight_decay
 
-        self.logger = init_log(Log_Path, "VAE_ID_ol")
+        self.logger = init_log(Train_Log_Path, "VAE_1D_ol")
         # 训练参数（多组参数）
         self.train_time = 0.0
 

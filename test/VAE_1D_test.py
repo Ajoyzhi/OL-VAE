@@ -4,14 +4,14 @@ from network.VAE_1D import VAE_1D
 from network.VAE_1D_Online import VAE_Online
 from optim.VAE_1D_trainer import VAE_1D_trainer
 from optim.VAE_1D_Online_trainer import OLVAE_1D_trainer
-from other.path import Picture,Log_Path
+from other.path import Picture,Test_Log_Path
 import matplotlib.pyplot as plt
 import time
 from other.log import init_log
 import numpy as np
 
 class test_VAE_1D():
-    def __init__(self, mu, std, epoch, train_num, test_num, train_batch_size, logvar: bool):
+    def __init__(self, mu, std, epoch, train_num, test_num, train_batch_size, logvar: bool=False):
         self.mu = mu # 生成数据的分布
         self.std = std
         self.epoch = epoch # 训练次数
@@ -39,9 +39,8 @@ class test_VAE_1D():
         self.ol_test_var = None
         self.ol_test_logvar = None
 
-        # 保存参数
-        self.logger = init_log(Log_Path,"test_VAE_1D")
-
+        # 保存参数 精确到分钟
+        self.logger = init_log(Test_Log_Path,"test_VAE_1D")
 
     # 生成训练数据和测试数据，并生成loader
     def get_dataloader(self):
@@ -116,21 +115,21 @@ class test_VAE_1D():
         ax23 = plt.subplot(233)
         my_plot(self.org_test_var, self.ol_test_var, "test var")
         # 画train_time
-        ax25 = plt.subplot(235)
+        ax24 = plt.subplot(234)
         train_time = (self.org_train_time, self.ol_train_time)
         my_bar(train_time, "train time")
         # 画test_time(一个值使用柱状图表示)
-        ax26 = plt.subplot(236)
+        ax25 = plt.subplot(235)
         test_time = (self.org_test_time, self.ol_test_time)
         my_bar(test_time, "test time")
 
         if self.logvar:
             # 画test logvar的图
-            ax24 = plt.subplot(234)
+            ax26 = plt.subplot(236)
             my_plot(self.org_test_logvar, self.ol_test_logvar, "test logvar")
 
         # 保存图
-        real_time = time.strftime('%Y-%m-%d-%H-%M-%S', time.localtime(time.time()))
+        real_time = time.strftime('%Y-%m-%d-%H-%M', time.localtime(time.time()))
         plt.savefig(Picture + real_time + "test_VAE_1D")
         plt.show()
         plt.close()

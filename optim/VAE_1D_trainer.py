@@ -2,7 +2,7 @@ import torch
 import torch.optim as optim
 from torch.utils.data import DataLoader
 from other.log import init_log
-from other.path import Log_Path
+from other.path import Train_Log_Path
 import time
 """
     对改进的VAE算法和原始VAE算法进行训练
@@ -24,7 +24,7 @@ class VAE_1D_trainer():
         # L2正则化的系数
         self.weight_decay = weight_decay
 
-        self.logger = init_log(Log_Path, "VAE_1D_org")
+        self.logger = init_log(Train_Log_Path, "VAE_1D_org")
         # 训练参数
         self.train_time = 0.0 # 只获取整个训练时间
 

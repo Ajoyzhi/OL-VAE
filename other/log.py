@@ -4,14 +4,14 @@ import time
 
 def init_log(filepath, name):
     # 获取本地时间
-    real_time = time.strftime('%Y-%m-%d-%H-%M-%S', time.localtime(time.time()))
+    real_time = time.strftime('%Y-%m-%d-%H-%M', time.localtime(time.time()))
     # 为你的log起个名字
     logger = logging.getLogger(__name__)
     # 设置输出等级，debug<info<warning等
     logger.setLevel(level=logging.INFO)
 
     # 将log输出到文件中
-    handler = logging.FileHandler(filepath + name + real_time + ".log")
+    handler = logging.FileHandler(filepath + real_time + name + ".log")
     # 设置等级，不设置默认用上面的输出等级
     # handler.setLevel(logging.INFO)
     # 设置格式 时间-输出内容
