@@ -11,13 +11,14 @@ from other.log import init_log
 import numpy as np
 
 class test_VAE_1D():
-    def __init__(self, mu, std, epoch, train_num, test_num, train_batch_size):
+    def __init__(self, mu, std, epoch, train_num, test_num, train_batch_size, logvar: bool):
         self.mu = mu # 生成数据的分布
         self.std = std
         self.epoch = epoch # 训练次数
         self.train_num = train_num # 训练数据个数
         self.test_num = test_num # 测试数据个数
         self.train_batch_size = train_batch_size # 训练数据的batch_size
+        self.logvar = logvar
 
         # 生成的中间变量
         self.train_loader = None
@@ -40,6 +41,7 @@ class test_VAE_1D():
 
         # 保存参数
         self.logger = init_log(Log_Path,"test_VAE_1D")
+
 
     # 生成训练数据和测试数据，并生成loader
     def get_dataloader(self):
@@ -113,9 +115,6 @@ class test_VAE_1D():
         # 画test var的图
         ax23 = plt.subplot(233)
         my_plot(self.org_test_var, self.ol_test_var, "test var")
-        # 画test logvar的图
-        ax24 = plt.subplot(234)
-        my_plot(self.org_test_logvar, self.ol_test_logvar, "test logvar")
         # 画train_time
         ax25 = plt.subplot(235)
         train_time = (self.org_train_time, self.ol_train_time)
@@ -125,18 +124,29 @@ class test_VAE_1D():
         test_time = (self.org_test_time, self.ol_test_time)
         my_bar(test_time, "test time")
 
+        if self.logvar:
+            # 画test logvar的图
+            ax24 = plt.subplot(234)
+            my_plot(self.org_test_logvar, self.ol_test_logvar, "test logvar")
+
         # 保存图
         real_time = time.strftime('%Y-%m-%d-%H-%M-%S', time.localtime(time.time()))
         plt.savefig(Picture + real_time + "test_VAE_1D")
         plt.show()
         plt.close()
 
-    #
+    # 保存数据
     def save_data(self):
         self.logger.info("origin train time:", self.org_train_time)
         self.logger.info("online train time:", self.ol_train_time)
         self.logger.info("origin test time:", self.org_test_time)
         self.logger.info("online test time:", self.ol_test_time)
+        self.logger.info("origin test mu:", self.org_test_mu)
+        self.logger.info("online test mu:", self.ol_test_mu)
+        self.logger.info("origin test var:", self.org_test_var)
+        self.logger.info("online test var:", self.ol_test_var)
+        self.logger.info("origin test logvar:", self.org_test_logvar)
+        self.logger.info("online test logvar:", self.ol_test_logvar)
 
 
 def my_plot(org_data, online_data, name:str):
