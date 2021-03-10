@@ -42,6 +42,7 @@ class SimpleMonitor13(simple_switch_13.SimpleSwitch13):
 
         # get evn data
         self.dp_buffer = [] # get [datapath, buffer] list
+        self.dp_buffer_use = [] # get [datapath, real_time, using_buffer]
         self.switch_buffer = []
         self.lantency = []
         self.controller_buffer = []
@@ -49,7 +50,8 @@ class SimpleMonitor13(simple_switch_13.SimpleSwitch13):
         # csv path data
         self.port_path = "/home/ajoy/Ajoy_data/port_data.csv"
         self.flow_entry_path = "/home/ajoy/Ajoy_data/fe_data.csv"
-        self.buffer_path = "/home/ajoy/Ajoy_data/dp_buffer.csv"
+        self.buffer_len_path = "/home/ajoy/Ajoy_data/dp_buffer_len.csv"
+        self.buffer_use_path = "/home/ajoy/Ajoy_data/dp_buffer_use.csv"
 
     # listen handshake message to get [datapath, buffer_len]
     @set_ev_cls(ofp_event.EventOFPSwitchFeatures, CONFIG_DISPATCHER)
@@ -58,18 +60,44 @@ class SimpleMonitor13(simple_switch_13.SimpleSwitch13):
         simple_switch_13.SimpleSwitch13.switch_features_handler(self, ev)
         msg = ev.msg
         data_tmp = []
-        self.logger.debug('OFPSwitchFeatures received: '
-                          'datapath_id=0x%016x n_buffers=%d '
-                          'n_tables=%d auxiliary_id=%d '
-                          'capabilities=0x%08x',
-                          msg.datapath_id, msg.n_buffers, msg.n_tables,
-                          msg.auxiliary_id, msg.capabilities)
+
         data_tmp.append(msg.datapath_id)
         data_tmp.append(msg.n_buffers)
 
         self.dp_buffer.append(data_tmp)
         # save datapath_buffer to file
         self.save_dp_buffer()
+
+    # listen packet-in message to get using buffer
+    @set_ev_cls(ofp_event.EventOFPPacketIn, MAIN_DISPATCHER)
+    def _packet_in_handler(self, ev):
+        # call parent method to learn MAC address
+        simple_switch_13.SimpleSwitch13._packet_in_handler(self, ev)
+        # get table-miss buffer_id
+        msg = ev.msg
+        dp = msg.datapath
+        ofp = dp.ofproto
+        if msg.reason == ofp.OFPR_NO_MATCH:
+            # TABLE-MISS 流表项
+            self.logger.info('OFPacketIn Receive for NO MATCH.')
+            data_tmp = []
+
+            real_time = time.strftime('%Y-%m-%d-%H-%M-%S', time.localtime(time.time()))
+            # get swith buffer(all the packet_in)
+            buffer = msg.buffer_id
+            data_tmp.append(dp.id)
+            data_tmp.append(real_time)
+            data_tmp.append(buffer)
+
+            # save buffer,but it is buffer id, so if there is override, it will be wrong
+            self.dp_buffer_use.append(data_tmp)
+            self.save_buffer_use()
+        elif msg.reason == ofp.OFPR_ACTION:
+            self.logger.info('OFPacketIn Receive for ACTION.')
+        elif msg.reason == ofp.OFPR_INVALID_TTL:
+            self.logger.info('OFPacketIn Receive for INVALID TTL.')
+        else:
+            self.logger.info('OFPacketIn Receive for no reason.')
 
     @set_ev_cls(ofp_event.EventOFPStateChange, [MAIN_DISPATCHER, DEAD_DISPATCHER])
     def _state_change_handler(self, ev):
@@ -94,7 +122,6 @@ class SimpleMonitor13(simple_switch_13.SimpleSwitch13):
         self.save_flow_entry_data()
         # save port status
         self.save_port_data()
-
         """
         while True:
             for dp in self.datapaths.values():
@@ -126,25 +153,35 @@ class SimpleMonitor13(simple_switch_13.SimpleSwitch13):
         self.logger.info('---------------- '
                          '-------- ----------------- '
                          '-------- -------- --------')
-                     
-        # no table-miss flow entry
-        for stat in sorted([flow for flow in body if flow.priority == 1],
-                           key=lambda flow: (flow.match['in_port'],
-                                             flow.match['eth_dst'])):
+        # add the function to get table-miss flow entry
+        for stat in body:
+            datapath = ev.msg.datapath.id
+            # table-miss flow entry
+            if stat.priority == 0:
+                in_port = 0
+                eth_dst = 0
+                out_port = 0
+                packets_count = stat.packet_count
+                bytes_count = stat.byte_count
+            # normal flow entry
+            else:
+                in_port = stat.match['in_port']
+                eth_dst = stat.match['eth_dst']
+                out_port = stat.instructions[0].actions[0].port
+                packets_count = stat.packet_count
+                bytes_count = stat.byte_count
+
             self.logger.info('%016x %8x %17s %8x %8d %8d',
-                             ev.msg.datapath.id,
-                             stat.match['in_port'], stat.match['eth_dst'],
-                             stat.instructions[0].actions[0].port,
-                             stat.packet_count, stat.byte_count)
-                             
+                        datapath, in_port, eth_dst, out_port, packets_count, bytes_count)
+
             # get data datapath, src_mac(in_port), dst_mac, packets_count, bytes_count
             real_time = time.strftime('%Y-%m-%d-%H-%M-%S', time.localtime(time.time()))
             self.fe_time.append(real_time)
-            self.fe_datapath.append(ev.msg.datapath.id)
-            self.in_port.append(stat.match['in_port'])
-            self.dst_mac.append(stat.match['eth_dst'])
-            self.packets_count.append(stat.packet_count)
-            self.bytes_count.append(stat.byte_count)
+            self.fe_datapath.append(datapath)
+            self.in_port.append(in_port)
+            self.dst_mac.append(eth_dst)
+            self.packets_count.append(packets_count)
+            self.bytes_count.append(bytes_count)
 
     @set_ev_cls(ofp_event.EventOFPPortStatsReply, MAIN_DISPATCHER)
     def _port_stats_reply_handler(self, ev):
@@ -194,10 +231,19 @@ class SimpleMonitor13(simple_switch_13.SimpleSwitch13):
         port_file.close()
 
     def save_dp_buffer(self):
-        dp_buffer_header = ['datapath', 'bufffer_len']
-        dp_buffer_file = open(self.buffer_path, 'a', newline='')
+        dp_buffer_header = ['datapath', 'buffer_len']
+        dp_buffer_file = open(self.buffer_len_path, 'a', newline='')
         dp_buffer_writer = csv.writer(dp_buffer_file, dialect='excel')
         dp_buffer_writer.writerow(dp_buffer_header)
         for item in self.dp_buffer:
             dp_buffer_writer.writerow(item)
         dp_buffer_file.close()
+
+    def save_buffer_use(self):
+        buffer_use_header = ['datapath', 'time', 'buffer_use']
+        buffer_use_file = open(self.buffer_use_path, 'a', newline='')
+        buffer_use_writer = csv.writer(buffer_use_file, dialect='excel')
+        buffer_use_writer.writerow(buffer_use_header)
+        for item in self.dp_buffer_use:
+            buffer_use_writer.writerow(item)
+        buffer_use_file.close()
