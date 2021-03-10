@@ -50,54 +50,6 @@ class SimpleMonitor13(simple_switch_13.SimpleSwitch13):
         # csv path data
         self.port_path = "/home/ajoy/Ajoy_data/port_data.csv"
         self.flow_entry_path = "/home/ajoy/Ajoy_data/fe_data.csv"
-        self.buffer_len_path = "/home/ajoy/Ajoy_data/dp_buffer_len.csv"
-        self.buffer_use_path = "/home/ajoy/Ajoy_data/dp_buffer_use.csv"
-
-    # listen handshake message to get [datapath, buffer_len]
-    @set_ev_cls(ofp_event.EventOFPSwitchFeatures, CONFIG_DISPATCHER)
-    def switch_features_handler(self, ev):
-        # call parent method
-        simple_switch_13.SimpleSwitch13.switch_features_handler(self, ev)
-        msg = ev.msg
-        data_tmp = []
-
-        data_tmp.append(msg.datapath_id)
-        data_tmp.append(msg.n_buffers)
-
-        self.dp_buffer.append(data_tmp)
-        # save datapath_buffer to file
-        self.save_dp_buffer()
-
-    # listen packet-in message to get using buffer
-    @set_ev_cls(ofp_event.EventOFPPacketIn, MAIN_DISPATCHER)
-    def _packet_in_handler(self, ev):
-        # call parent method to learn MAC address
-        simple_switch_13.SimpleSwitch13._packet_in_handler(self, ev)
-        # get table-miss buffer_id
-        msg = ev.msg
-        dp = msg.datapath
-        ofp = dp.ofproto
-        if msg.reason == ofp.OFPR_NO_MATCH:
-            # TABLE-MISS 流表项
-            self.logger.info('OFPacketIn Receive for NO MATCH.')
-            data_tmp = []
-
-            real_time = time.strftime('%Y-%m-%d-%H-%M-%S', time.localtime(time.time()))
-            # get swith buffer(all the packet_in)
-            buffer = msg.buffer_id
-            data_tmp.append(dp.id)
-            data_tmp.append(real_time)
-            data_tmp.append(buffer)
-
-            # save buffer,but it is buffer id, so if there is override, it will be wrong
-            self.dp_buffer_use.append(data_tmp)
-            self.save_buffer_use()
-        elif msg.reason == ofp.OFPR_ACTION:
-            self.logger.info('OFPacketIn Receive for ACTION.')
-        elif msg.reason == ofp.OFPR_INVALID_TTL:
-            self.logger.info('OFPacketIn Receive for INVALID TTL.')
-        else:
-            self.logger.info('OFPacketIn Receive for no reason.')
 
     @set_ev_cls(ofp_event.EventOFPStateChange, [MAIN_DISPATCHER, DEAD_DISPATCHER])
     def _state_change_handler(self, ev):
@@ -229,21 +181,3 @@ class SimpleMonitor13(simple_switch_13.SimpleSwitch13):
         for item in port_data:
             port_writer.writerow(item)
         port_file.close()
-
-    def save_dp_buffer(self):
-        dp_buffer_header = ['datapath', 'buffer_len']
-        dp_buffer_file = open(self.buffer_len_path, 'a', newline='')
-        dp_buffer_writer = csv.writer(dp_buffer_file, dialect='excel')
-        dp_buffer_writer.writerow(dp_buffer_header)
-        for item in self.dp_buffer:
-            dp_buffer_writer.writerow(item)
-        dp_buffer_file.close()
-
-    def save_buffer_use(self):
-        buffer_use_header = ['datapath', 'time', 'buffer_use']
-        buffer_use_file = open(self.buffer_use_path, 'a', newline='')
-        buffer_use_writer = csv.writer(buffer_use_file, dialect='excel')
-        buffer_use_writer.writerow(buffer_use_header)
-        for item in self.dp_buffer_use:
-            buffer_use_writer.writerow(item)
-        buffer_use_file.close()
