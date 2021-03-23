@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 class performance():
     def __init__(self, label_prediction: list):
         # 将压缩的list解压，返回矩阵形式
-        self.label, self.prediction = zip(*label_prediction)
+        _, self.label, self.prediction = zip(*label_prediction)
 
         self.accurancy = 0.0
         self.precision = 0.0
