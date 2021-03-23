@@ -153,8 +153,7 @@ class VAE_Kdd99_trainer():
         其它：test()函数中的batch一定是1.
     """
     def test(self, M: int=10):
-        # 其实index_list没有必要
-        # index_list = []
+        index_list = []
         prediction_list = []
         label_list = []
         index_label_prediction = []
@@ -173,22 +172,21 @@ class VAE_Kdd99_trainer():
                 std = torch.exp(0.5 * logvar)
                 avrg_prob = prob_avrg(M, mu, std, self.train_mu, self.train_var)
                 # 统计结果
-                # index_list.append(index)
+                index_list.append(index)
                 label_list.append(label)
                 if avrg_prob < self.threshold:
                     prediction_list.append(1)# 异常
                 else:
                     prediction_list.append(0)# 正常
-
-                # 将{index，label，predict_label}封装在一个list中
-                index_label_prediction = zip(label_list, prediction_list)
                 # 打印label和预测结果
                 self.test_logger.info("index:{}\t label:{}\t prediction:{}\t probability:{}\t mu:{}\t std:{}\t".
-                            format(index, label, prediction_list[index], avrg_prob, mu, std))
+                                          format(index, label, prediction_list[index], avrg_prob, mu, std))
+            # 将{index，label，predict_label}封装在一个list中
+            index_label_prediction = list(zip(index_list, label_list, prediction_list))
 
             self.test_time = time.time() - start_time
             self.test_logger.info("detection time is {:.3f}".format(self.test_time))
-        """
+
         # 输出性能
         per_obj = performance(index_label_prediction)
         per_obj.get_base_metrics()
@@ -198,7 +196,7 @@ class VAE_Kdd99_trainer():
                     format(per_obj.accurancy, per_obj.precision, per_obj.recall, per_obj.f1score, per_obj.AUC))
 
         self.test_logger.info("Finishing testing VAE with Kdd99...")
-        """
+
     """
         调用该方法时需要创建新的trainloader；net为之前的self.net结构
     """
