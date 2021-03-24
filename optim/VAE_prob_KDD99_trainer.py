@@ -9,7 +9,7 @@ from other.log import init_log
 from performance.performance import performance
 
 class VAE_prob_KDD99_trainer():
-    def __init__(self, net, trainloader:DataLoader, testloader:DataLoader, epoch, lr, weight_decay, simple_num, alpha):
+    def __init__(self, net, trainloader:DataLoader, testloader:DataLoader, epoch:int=10, lr:float=0.001, weight_decay:float=1e-6, simple_num:int=10, alpha:float=0.5):
         self.net = net
         self.trainloader = trainloader
         self.testloader = testloader
@@ -22,6 +22,9 @@ class VAE_prob_KDD99_trainer():
         
         self.train_logger = init_log(Train_Log_Path, "VAE_prob")
         self.test_logger = init_log(Test_Log_Path, "VAE_prob")
+        self.train_time = 0.0
+        self.test_time = 0.0
+        self.index_label_prediction = []
 
     def train(self):
         self.train_logger.info("Start train VAE prob with KDD99...")
@@ -48,16 +51,15 @@ class VAE_prob_KDD99_trainer():
             self.train_logger.info("Epoch{}/{} average training time of each batch:{.3f}\t average training loss of each batch:{.8f}"
                                    .format(epoch, self.epoch, epoch_using_time/ count_batch, epoch_loss / count_batch, ))
             train_loss += epoch_loss
-        using_time = time.time() -start_time
-        self.train_logger.info("Training time:{.3f}\t average training loss of each epoch:{.8f}".format(using_time, train_loss/self.epoch))
+        self.train_time = time.time() -start_time
+        self.train_logger.info("Training time:{.3f}\t average training loss of each epoch:{.8f}".format(self.train_time, train_loss/self.epoch))
         self.train_logger.info("Finish train VAE prob with KDD99.")
         
     def test(self):
         index_list = []
         prediction_list = []
         label_list = []
-        index_label_prediction = []
-        
+
         self.test_logger.info("Start test VAE prob with KDD99...")
         self.net.eval()
         start_time = time.time()
@@ -85,16 +87,9 @@ class VAE_prob_KDD99_trainer():
                 # 打印label和预测结果
                 self.test_logger.info("index:{}\t label:{}\t prediction:{}\t probability:{}\t mu:{}\t var:{}\t"
                                       .format(index, label, prediction_list[index], prob_data, mu, logvar.exp()))
-            index_label_prediction = list(zip(index_list, label_list, prediction_list))
-            using_time = time.time() - start_time
-            self.test_logger.info("detection time:{.3f}".format(using_time))
-        # 输出性能
-        per_obj = performance(index_label_prediction)
-        per_obj.get_base_metrics()
-        per_obj.AUC_ROC()
-
-        self.test_logger.info("accurancy:{:.5f}\t precision:{:.5f}\t recall:{:.5f}\t f1score:{:.5f}\t AUC:{:.5f}\t".
-                    format(per_obj.accurancy, per_obj.precision, per_obj.recall, per_obj.f1score, per_obj.AUC))
+            self.index_label_prediction = list(zip(index_list, label_list, prediction_list))
+            self.test_time = time.time() - start_time
+            self.test_logger.info("detection time:{.3f}".format(self.test_time))
 
         self.test_logger.info("Finishing testing VAE prob with Kdd99...")
    

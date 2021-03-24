@@ -13,17 +13,15 @@ from other.path import Model
 # 数据集和损失函数是相关联的，所以必须对不同的损失函数（数据集）建立不同的trainer
 class VAE_Kdd99_trainer():
     def __init__(self, net, trainloader: DataLoader, testloader: DataLoader=None, epochs: int = 10, lr: float = 0.001,
-                 lr_milestones: tuple = (), weight_decay: float = 1e-6, alpha: float=0.5):
+                  weight_decay: float = 1e-6):
         self.net = net
         self.trainloader = trainloader
         self.testloader = testloader
-
         self.epochs = epochs
         self.lr = lr
-        self.milestones = lr_milestones
         # L2正则化的系数
         self.weight_decay = weight_decay
-        self.alpha = alpha
+
         # 保存数据
         self.train_logger = init_log(Train_Log_Path, "VAE_KDD99")
         self.test_logger = init_log(Test_Log_Path, "VAE_KDD99")
@@ -39,13 +37,14 @@ class VAE_Kdd99_trainer():
 
         # 测试时，每个数据的参数
         self.test_time = 0.0
+        self.train_time = 0.0
+        self.get_param_time = 0.0
+        self.index_label_prediction = []
 
     def train(self):
         self.train_logger.info("Starting training VAE with Kdd99...")
         # 设置优化算法
         optimizer = optim.Adam(self.net.parameters(), lr=self.lr, weight_decay=self.weight_decay)
-        # 设置学习率的下降区间和速度 gamma为学习率的下降速率
-        scheduler = optim.lr_scheduler.MultiStepLR(optimizer, milestones=self.milestones, gamma=0.1)
         # 训练
         start_time = time.time()
         self.net.train()
@@ -68,13 +67,10 @@ class VAE_Kdd99_trainer():
                 batch_loss, _ = loss_function(recon_batch, data, mu, logvar)
                 batch_loss.backward()
                 optimizer.step()
-                scheduler.step()
                 # 一次迭代中所有数据的误差loss
                 epoch_loss += batch_loss.item()
                 count_batch += 1
-            # 显示学习率的变化
-            if epoch in self.milestones:
-                self.train_logger.info("LR scheduler: new learning rate is %g" % float(scheduler.get_lr()[0]))
+
             # 输出每个epoch的训练时间和每个batch的训练损失
             train_loss += epoch_loss
             epoch_train_time = time.time() - epoch_start_time
@@ -82,10 +78,10 @@ class VAE_Kdd99_trainer():
             self.train_logger.info("\n Epoch{}/{}\t Training time of each epoch:{:.3f}\t Avarge loss of each batch:{:.8f}\t".
                         format(epoch+1, self.epochs, epoch_train_time, epoch_loss/count_batch))
         # 计算所有数据的训练时间和每个epoch的训练损失
-        train_time = time.time() - start_time
+        self.train_time = time.time() - start_time
         train_loss /= self.epochs
         # train_loss就相当于所有迭代所有数据的总误差
-        self.train_logger.info("Training time:{:.3f}\t Avarge loss of each epoch:{:.8f}\t".format(train_time, train_loss))
+        self.train_logger.info("Training time:{:.3f}\t Avarge loss of each epoch:{:.8f}\t".format(self.train_time, train_loss))
         self.train_logger.info("Finish training VAE with Kdd99.")
 
     def get_normal_parm(self):
@@ -136,14 +132,14 @@ class VAE_Kdd99_trainer():
             self.train_var = list_avrg(var_list)
             self.train_loss = list_avrg(loss_list)
 
-        using_time = time.time() - start_time
+        self.get_param_time = time.time() - start_time
 
         self.train_logger.info("the threshold is {}\n "
                          "the mean of normal distribution is {}\n"
                          "the variance of normal distribution is {}\n"
                          "the loss of training data is {:.8f}\n"
                          "the using time of getting param is {:.3f}\n"
-                         .format(self.threshold, self.train_mu, self.train_var, self.train_loss, using_time))
+                         .format(self.threshold, self.train_mu, self.train_var, self.train_loss, self.get_param_time))
         self.train_logger.info("Finish getting parameters.")
 
     """
@@ -152,11 +148,10 @@ class VAE_Kdd99_trainer():
         输出：异常分数score [0,1]；标签flag {0,1}
         其它：test()函数中的batch一定是1.
     """
-    def test(self, M: int=10):
+    def test(self):
         index_list = []
         prediction_list = []
         label_list = []
-        index_label_prediction = []
 
         self.test_logger.info("Starting detecting anomaly data in kdd99...")
         start_time = time.time()
@@ -170,7 +165,7 @@ class VAE_Kdd99_trainer():
                 _, mu, logvar = self.net(data)
                 # 计算simple标准差
                 std = torch.exp(0.5 * logvar)
-                avrg_prob = prob_avrg(M, mu, std, self.train_mu, self.train_var)
+                avrg_prob = prob_avrg(self.M, mu, std, self.train_mu, self.train_var)
                 # 统计结果
                 index_list.append(index)
                 label_list.append(label)
@@ -182,21 +177,11 @@ class VAE_Kdd99_trainer():
                 self.test_logger.info("index:{}\t label:{}\t prediction:{}\t probability:{}\t mu:{}\t std:{}\t".
                                           format(index, label, prediction_list[index], avrg_prob, mu, std))
             # 将{index，label，predict_label}封装在一个list中
-            index_label_prediction = list(zip(index_list, label_list, prediction_list))
+            self.index_label_prediction = list(zip(index_list, label_list, prediction_list))
 
             self.test_time = time.time() - start_time
             self.test_logger.info("detection time is {:.3f}".format(self.test_time))
-
-        # 输出性能
-        per_obj = performance(index_label_prediction)
-        per_obj.get_base_metrics()
-        per_obj.AUC_ROC()
-
-        self.test_logger.info("accurancy:{:.5f}\t precision:{:.5f}\t recall:{:.5f}\t f1score:{:.5f}\t AUC:{:.5f}\t".
-                    format(per_obj.accurancy, per_obj.precision, per_obj.recall, per_obj.f1score, per_obj.AUC))
-
         self.test_logger.info("Finishing testing VAE with Kdd99...")
-
     """
         调用该方法时需要创建新的trainloader；net为之前的self.net结构
     """
