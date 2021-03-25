@@ -5,10 +5,10 @@ class AE_KDD99(nn.Module):
     def __init__(self):
         super(AE_KDD99, self).__init__()
         
-        self.fe1 = nn.Linear(10, 50)
-        self.fe2 = nn.Linear(50, 10)
-        self.fd1 = nn.Linear(10, 50)
-        self.fd2 = nn.Linear(50, 10)
+        self.fe1 = nn.Linear(15, 50)
+        self.fe2 = nn.Linear(50, 15)
+        self.fd1 = nn.Linear(15, 50)
+        self.fd2 = nn.Linear(50, 15)
         
     def forward(self, x):
         h11 = torch.sigmoid(self.fe1(x))
