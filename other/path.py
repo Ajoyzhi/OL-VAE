@@ -22,6 +22,8 @@ Train_Log_Path = '../other/log/train/'
 Test_Log_Path = '../other/log/test/'
 # 图像输出位置
 Picture = '../other/pictures/'
+# acc pre FPR detection_time train_time
+Performance = '../other/performance/'
 
 # 网络参数保存位置
 Model = '../other/'

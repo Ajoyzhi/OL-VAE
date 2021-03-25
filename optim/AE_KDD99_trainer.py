@@ -1,6 +1,7 @@
 import torch
 import torch.optim as optim 
 import time
+import csv
 import numpy as np
 from sklearn.cluster import KMeans
 from network.AE_KDD99 import AE_KDD99
@@ -8,6 +9,18 @@ from torch.utils.data import DataLoader
 from other.log import init_log
 from other.path import Train_Log_Path,Test_Log_Path
 
+"""
+    save train data(log)
+        1. average training time of each batch
+        2. average training loss of each batch
+        3. Trainer time
+        4. average trainer time of each epoch
+        5. center of cluster and radius
+    into /other/log/train/AE_KDD99.log
+    save test data(csv)
+        index label prediction
+    into /other/log/test/AE_KDD99.csv
+"""
 class AE_KDD99_trainer():
     def __init__(self, net:AE_KDD99, trainloader:DataLoader, testloader:DataLoader, epoch:int=10, lr:float=0.001, weight_decay:float=1e-6, cluster_num:int=4):
         self.net = net
@@ -23,13 +36,14 @@ class AE_KDD99_trainer():
         self.radius = []
         
         self.train_logger = init_log(Train_Log_Path, "AE_KDD99")
-        self.test_logger = init_log(Test_Log_Path, "AE_KDD99")
+        # self.test_logger = init_log(Test_Log_Path, "AE_KDD99")
         self.train_time = 0.0
         self.test_time = 0.0
+        self.get_param_time = 0.0
         self.index_label_prediction = []
         
     def train(self):
-        self.train_logger.info("Start train AE with KDD99...")
+        self.train_logger.info("Start training AE with KDD99...")
         optimizer = optim.Adam(self.net.parameters(), lr=self.lr, weight_decay=self.weight_decay)
         loss_func = torch.nn.MSELoss()
         self.net.train()
@@ -42,60 +56,66 @@ class AE_KDD99_trainer():
             epoch_loss = 0.0
             for item in self.trainloader:
                 data, _, _ = item
+                data = data.float()
                 middle_data, data_recon = self.net(data)
                 loss = loss_func(data_recon, data)
                 optimizer.zero_grad()
-                loss.backforward()
+                loss.backward()
                 optimizer.step()
 
                 epoch_loss += loss
                 count_batch += 1
             using_time = time.time() - epoch_start_time
-            self.train_logger.info("Epoch{}/{} average training time of each batch:{.3f}\t average training loss of each batch:{.8f}"
-                                   .format(epoch, self.epoch, using_time/count_batch, epoch_loss/count_batch))
+            self.train_logger.info("Epoch{}/{} triaining tme of each batch:{:.3f}\t average loss of each batch:{:.8f}"
+                                   .format(epoch+1, self.epoch, using_time/count_batch, epoch_loss/count_batch))
             train_loss += epoch_loss
         self.train_time = time.time() - start_time
-        self.train_logger.info("Trainer time:{.3f}\t average trainer time of each epoch:{.8f}"
+        self.train_logger.info("training time:{:.3f}\t average training loss of each epoch:{:.8f}"
                                .format(self.train_time, train_loss/self.epoch))
-        self.train_logger.info("Finish train AE with KDD99.")
+        self.train_logger.info("Finish training AE with KDD99.")
 
     def get_param(self):
-        loss_func = torch.nn.MSELoss()
-        loss_all_list = []
-        with torch.no_grad:
+        self.train_logger.info("Start getting KDD99 normal parameters...")
+        # a list of numpy.ndarray
+        loss_all = []
+        start_time = time.time()
+        with torch.no_grad():
             for item in self.trainloader:
                 data, _, _ = item
+                data = data.float()
                 middle_data, data_recon = self.net(data)
-                loss = loss_func(data_recon, data)
-                # get all the loss(1*10)
-                loss_all_list.append(loss)
-            # cluster the loss
-            loss_all_tensor = torch.Tensor(loss_all_list)
-            # loss：1 row
-            loss_all = loss_all_tensor.view((1, -1))
-            self.kmeans = KMeans(n_clusters=self.cluster)
-            self.kmeans.fit(loss_all)
+                # 10 * 15
+                loss = (data_recon - data) ** 2
+                # get each data loss 97 * 15
+                for item in loss:
+                    loss_all.append(item.numpy())
+
+            loss_all = np.array(loss_all)
+            self.kmeans = KMeans(n_clusters=self.cluster).fit(loss_all)
             self.center = self.kmeans.cluster_centers_.tolist()
             self.radius = self.get_radius(loss_all)
+            self.train_logger.info("{} clusters' center:{} and radius:{}".format(self.cluster, self.center, self.radius))
+        self.get_param_time = time.time() - start_time
+        self.train_logger.info("Finish getting KDD99 normal parmeters.")
 
     def test(self):
         index_list = []
         label_list = []
         prediction_list = []
 
-        loss_func = torch.nn.MSELoss()
-        self.test_logger.info("Start test AE with KDD99...")
+        # loss_func = torch.nn.MSELoss(reduction="none")
         self.net.eval()
         start_time = time.time()
-        with torch.no_grad:
+        with torch.no_grad():
             for item in self.testloader:
                 data, label, index = item
+                data = data.float()
                 index_list.append(index)
                 label_list.append(label)
                 middle_data, data_recon = self.net(data)
-                loss = loss_func(data_recon, data)
+                loss = (data_recon - data) ** 2
                 # get loss label batch_size =1
-                predict = self.kmeans.predict(loss)
+                predict = predict(loss)
                 dis = abs(self.center[predict] - loss)
                 if dis > self.radius[predict]:
                     prediction_list.append(1)# anomaly
@@ -104,7 +124,15 @@ class AE_KDD99_trainer():
 
             self.index_label_prediction = list(zip(index_list, label_list, prediction_list))
         self.test_time = time.time() - start_time
-        self.test_logger.info("Finish test AE with KDD99.")
+        # save test result into csv
+        filepath = Test_Log_Path + "AE_KDD99.csv"
+        file = open(file=filepath, mode='w', newline='')
+        writer = csv.writer(csvfile=file, dialect='excel')
+        header = ['index', 'label', 'prediction']
+        writer.writerow(header)
+        for item in self.index_label_prediction:
+            writer.writerow(item)
+        file.close()
 
     def get_radius(self, X):
         radius = []
@@ -113,5 +141,9 @@ class AE_KDD99_trainer():
             dis = []
             for k in range(cls.shape[0]):
                 dis.append(abs(self.center[i] - cls[k]))
-            radius.append(max(dis))
+            print(len(dis))
+            # select the 0.9 quantile of dis as radius
+            radius.append(np.quantile(dis, 0.9))
         return radius
+    def predict(self, X):
+        pass

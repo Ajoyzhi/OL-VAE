@@ -1,19 +1,30 @@
 import torch
 import torch.optim as optim
-
 from torch.utils.data import DataLoader
 from other.log import init_log
 from other.path import Train_Log_Path, Test_Log_Path
-from performance.performance import performance
 import time
+import csv
 from scipy.stats import multivariate_normal
 import numpy as np
 from other.path import Model
 
+"""
+    save train data(log)
+        1. average training time of each batch
+        2. average training loss of each batch
+        3. Trainer time
+        4. average trainer time of each epoch
+        5. normal mean, var, threshold, time, loss
+    into /other/log/train/VAE_KDD99.log
+    save test data(csv)
+        index label prediction
+    into /other/log/test/VAE_KDD99.csv
+"""
 # 数据集和损失函数是相关联的，所以必须对不同的损失函数（数据集）建立不同的trainer
 class VAE_Kdd99_trainer():
     def __init__(self, net, trainloader: DataLoader, testloader: DataLoader=None, epochs: int = 10, lr: float = 0.001,
-                  weight_decay: float = 1e-6):
+                  weight_decay: float = 1e-6, sample_num:int=10):
         self.net = net
         self.trainloader = trainloader
         self.testloader = testloader
@@ -21,19 +32,17 @@ class VAE_Kdd99_trainer():
         self.lr = lr
         # L2正则化的系数
         self.weight_decay = weight_decay
+        # 采样次数
+        self.M = sample_num
 
         # 保存数据
         self.train_logger = init_log(Train_Log_Path, "VAE_KDD99")
-        self.test_logger = init_log(Test_Log_Path, "VAE_KDD99")
-
-        self.train_mu = 0.0  # 15维向量
-        self.train_var = 0.0 # 15维向量
-        self.train_var_diag = 0.0 # 15 * 15矩阵
         self.train_loss = 0.0
         # 异常判断的门限值
         self.threshold = 5e-9
-        # 采样次数
-        self.M = 10
+        self.train_mu = []
+        self.train_var = []
+        self.train_loss = []
 
         # 测试时，每个数据的参数
         self.test_time = 0.0
@@ -42,7 +51,7 @@ class VAE_Kdd99_trainer():
         self.index_label_prediction = []
 
     def train(self):
-        self.train_logger.info("Starting training VAE with Kdd99...")
+        self.train_logger.info("Start training VAE with Kdd99...")
         # 设置优化算法
         optimizer = optim.Adam(self.net.parameters(), lr=self.lr, weight_decay=self.weight_decay)
         # 训练
@@ -63,7 +72,6 @@ class VAE_Kdd99_trainer():
                 # print("data type: float32", data.dtype)
                 # 执行的是forward函数 mu一个15维的向量；logvar为15维的向量
                 recon_batch, mu, logvar = self.net(data)
-                # 损失函数必须和网络结构、数据集绑定在一起
                 batch_loss, _ = loss_function(recon_batch, data, mu, logvar)
                 batch_loss.backward()
                 optimizer.step()
@@ -75,13 +83,13 @@ class VAE_Kdd99_trainer():
             train_loss += epoch_loss
             epoch_train_time = time.time() - epoch_start_time
             # epoch_loss就是一次迭代所有数据的总误差
-            self.train_logger.info("\n Epoch{}/{}\t Training time of each epoch:{:.3f}\t Avarge loss of each batch:{:.8f}\t".
+            self.train_logger.info("\n Epoch{}/{} triaining tme of each batch:{:.3f}\t average loss of each batch:{:.8f}".
                         format(epoch+1, self.epochs, epoch_train_time, epoch_loss/count_batch))
         # 计算所有数据的训练时间和每个epoch的训练损失
         self.train_time = time.time() - start_time
         train_loss /= self.epochs
         # train_loss就相当于所有迭代所有数据的总误差
-        self.train_logger.info("Training time:{:.3f}\t Avarge loss of each epoch:{:.8f}\t".format(self.train_time, train_loss))
+        self.train_logger.info("training time:{:.3f}\t average training loss of each epoch:{:.8f}".format(self.train_time, train_loss))
         self.train_logger.info("Finish training VAE with Kdd99.")
 
     def get_normal_parm(self):
@@ -97,12 +105,10 @@ class VAE_Kdd99_trainer():
             for item in self.trainloader:
                 data, _, _ = item
                 data = data.float()
-                # simple mu and var
                 recon, mu, logvar = self.net(data)
-                # 其实没有必要计算损失
                 loss, var = loss_function(recon, data, mu, logvar)
                 count_batch += 1
-                # 求每个batch（10个数据）的平均值向量
+                # 求每个batch（batch=10个数据）的平均值向量
                 batch_mu_list = torch.mean(mu, dim=0)
                 batch_var_list = torch.mean(var, dim=0)
                 batch_loss_list = torch.mean(loss, dim=0)
@@ -114,7 +120,6 @@ class VAE_Kdd99_trainer():
                 # 获取正常数据分布的阈值
                 mu_numpy = mu.numpy()
                 var_numpy = var.numpy()
-                # 计算variance
                 std = torch.exp(0.5 * logvar)
                 std_numpy = std.numpy()
                 normaldata_prob = 0.0
@@ -122,7 +127,7 @@ class VAE_Kdd99_trainer():
                     mu = torch.from_numpy(mu_numpy[i])
                     std = torch.from_numpy(std_numpy[i])
                     var = torch.from_numpy(var_numpy[i])
-                    # 每个数据隐变量采样的概率mean
+                    # 每个数据隐变量采样M个数据的概率mean
                     eachdata_prob = prob_avrg(self.M, mu, std, mu, var)
                     normaldata_prob += eachdata_prob
                 normaldata_prob /= len(mu_numpy)
@@ -144,7 +149,7 @@ class VAE_Kdd99_trainer():
 
     """
         测试样本是否正常
-        输入：表示3sigma中的3；M：采样的次数; self.threshold: 判断异常与否的阈值[0,1]
+        输入：M：采样的次数; self.threshold: 判断异常与否的阈值[0,1]
         输出：异常分数score [0,1]；标签flag {0,1}
         其它：test()函数中的batch一定是1.
     """
@@ -153,17 +158,14 @@ class VAE_Kdd99_trainer():
         prediction_list = []
         label_list = []
 
-        self.test_logger.info("Starting detecting anomaly data in kdd99...")
         start_time = time.time()
         self.net.eval()
         with torch.no_grad():
             for item in self.testloader:
                 data, label, index = item
                 data = data.float()
-                # 只是一个batch的损失，mu，logvar
                 # 如果batch为1，则以下变量对应一个数据的loss、mu、logvar
                 _, mu, logvar = self.net(data)
-                # 计算simple标准差
                 std = torch.exp(0.5 * logvar)
                 avrg_prob = prob_avrg(self.M, mu, std, self.train_mu, self.train_var)
                 # 统计结果
@@ -173,17 +175,20 @@ class VAE_Kdd99_trainer():
                     prediction_list.append(1)# 异常
                 else:
                     prediction_list.append(0)# 正常
-                # 打印label和预测结果
-                self.test_logger.info("index:{}\t label:{}\t prediction:{}\t probability:{}\t mu:{}\t std:{}\t".
-                                          format(index, label, prediction_list[index], avrg_prob, mu, std))
-            # 将{index，label，predict_label}封装在一个list中
             self.index_label_prediction = list(zip(index_list, label_list, prediction_list))
-
             self.test_time = time.time() - start_time
-            self.test_logger.info("detection time is {:.3f}".format(self.test_time))
-        self.test_logger.info("Finishing testing VAE with Kdd99...")
+        # save test result into csv
+        filepath = Test_Log_Path + "VAE_KDD99.csv"
+        file = open(file=filepath, mode='w', newline='')
+        writer = csv.writer(csvfile=file, dialect='excel')
+        header = ['index', 'label', 'prediction']
+        writer.writerow(header)
+        for item in self.index_label_prediction:
+            writer.writerow(item)
+        file.close()
     """
         调用该方法时需要创建新的trainloader；net为之前的self.net结构
+    """
     """
     def update_model(self):
         # 获取原网络结构的参数。字典类型，key value
@@ -204,7 +209,7 @@ class VAE_Kdd99_trainer():
         torch.save(dict_new, Model + 'net_parm.pth')
         # 将新参数加载到self.net中
         self.net.load_stat_dict(torch.load(Model + 'net_parm.pth'))
-
+    """
 # Reconstruction + KL divergence losses summed over all elements and batch
 def loss_function(recon_x, x, mu, logvar):
     # 累加重构误差
