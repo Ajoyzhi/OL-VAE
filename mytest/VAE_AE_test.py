@@ -1,11 +1,16 @@
 import matplotlib.pyplot as plt
-from other.path import Picture
+import csv
+from other.path import Picture, Performance
 from network.AE_KDD99 import AE_KDD99
 from network.VAE_KDD99 import VAE_KDD99
 from optim.AE_KDD99_trainer import AE_KDD99_trainer
 from optim.VAE_KDD99_trainer import VAE_Kdd99_trainer
 from optim.VAE_prob_KDD99_trainer import VAE_prob_KDD99_trainer
 
+"""
+   save all the performance data into /other/performance/vae_ae_comp.csv 
+   no print
+"""
 class VAE_AE_test():
     def __init__(self, trainloader, testlaoder, epoch:int=10, lr:float=0.001, weight_decay:float=1e-6, prob_simple_num:int=10, prob_alpha:float=0.5):
         self.trainloader = trainloader
@@ -29,9 +34,10 @@ class VAE_AE_test():
         ae_net = AE_KDD99()
         ae_trainer = AE_KDD99_trainer(ae_net, self.trainloader, self.testloader, self.epoch, self.lr, self.weight_decay)
         ae_trainer.train()
+        ae_trainer.get_param()
         ae_trainer.test()
         self.train_time.append(ae_trainer.train_time)
-        self.detection_time.append(ae_trainer.test_time)
+        self.detection_time.append(ae_trainer.get_param_time+ae_trainer.test_time)
         acc, pre, FPR = metric(ae_trainer.index_label_prediction)
         self.accurancy.append(acc)
         self.precision.append(pre)
@@ -67,6 +73,17 @@ class VAE_AE_test():
         my_bar(self.FPR, "FPR")
         my_bar(self.train_time, "training time")
         my_bar(self.detection_time, "detection time")
+
+    def save_data(self):
+        performance = list(zip(self.accurancy, self.precision, self.FPR, self.detection_time, self.train_time))
+        header = ['accurancy', 'precision', 'FPR', 'detection time', 'train time']
+        file_path = Performance + "vae_ae_comp.csv"
+        file = open(file=file_path, mode='w', newline=' ')
+        writer = csv.writer(csvfile=file, dialect='excel')
+        writer.writerow(header)
+        for item in performance:
+            writer.writerow(item)
+        file.close()
 
 def metric(index_label_prediction:list):
     index, label, prediction = zip(*index_label_prediction)

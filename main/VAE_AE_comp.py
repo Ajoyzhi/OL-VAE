@@ -9,4 +9,5 @@ if __name__ == '__main__':
                                      num_workers=0).loader  # 300个数据
     vae_ae_comp = VAE_AE_test(trainloader=kdd99_trian_loader, testlaoder=kdd99_test_loader, epoch=50)
     vae_ae_comp.get_param()
+    vae_ae_comp.save_data()
     vae_ae_comp.my_plot()
