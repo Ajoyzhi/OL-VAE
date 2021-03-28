@@ -16,4 +16,4 @@ class AE_KDD99(nn.Module):
         h21 = torch.sigmoid(self.fd1(h12))
         h22 = self.fd2(h21)
         
-        return h12, h22
+        return h12, h22.double()

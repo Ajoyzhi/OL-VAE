@@ -22,7 +22,7 @@ from other.path import Train_Log_Path,Test_Log_Path
     into /other/log/test/AE_KDD99.csv
 """
 class AE_KDD99_trainer():
-    def __init__(self, net:AE_KDD99, trainloader:DataLoader, testloader:DataLoader, epoch:int=10, lr:float=0.001, weight_decay:float=1e-6, cluster_num:int=4):
+    def __init__(self, net:AE_KDD99, trainloader:DataLoader, testloader:DataLoader, epoch:int=10, lr:float=0.001, weight_decay:float=1e-6, cluster_num:int=2):
         self.net = net
         self.trainloader = trainloader
         self.testloader = testloader
@@ -45,7 +45,6 @@ class AE_KDD99_trainer():
     def train(self):
         self.train_logger.info("Start training AE with KDD99...")
         optimizer = optim.Adam(self.net.parameters(), lr=self.lr, weight_decay=self.weight_decay)
-        loss_func = torch.nn.MSELoss()
         self.net.train()
 
         start_time = time.time()
@@ -58,7 +57,9 @@ class AE_KDD99_trainer():
                 data, _, _ = item
                 data = data.float()
                 middle_data, data_recon = self.net(data)
-                loss = loss_func(data_recon, data)
+                # 对batch数据每一列求和（10*15）->(1*15)
+                scores = torch.sum((data_recon - data) ** 2, dim=tuple(range(1, data_recon.dim())))
+                loss = torch.mean(scores)
                 optimizer.zero_grad()
                 loss.backward()
                 optimizer.step()
@@ -103,7 +104,6 @@ class AE_KDD99_trainer():
         label_list = []
         prediction_list = []
 
-        # loss_func = torch.nn.MSELoss(reduction="none")
         self.net.eval()
         start_time = time.time()
         with torch.no_grad():
@@ -114,10 +114,11 @@ class AE_KDD99_trainer():
                 label_list.append(label)
                 middle_data, data_recon = self.net(data)
                 loss = (data_recon - data) ** 2
-                # get loss label batch_size =1
-                predict = predict(loss)
-                dis = abs(self.center[predict] - loss)
-                if dis > self.radius[predict]:
+                # get loss label batch_size =1, but predict is a array
+                predict = self.kmeans.predict(loss)
+                loss = loss.numpy()
+                dis = self.manhattan_distance(self.center[predict[0]], loss)
+                if dis > self.radius[predict[0]]:
                     prediction_list.append(1)# anomaly
                 else:
                     prediction_list.append(0)# normal
@@ -127,7 +128,7 @@ class AE_KDD99_trainer():
         # save test result into csv
         filepath = Test_Log_Path + "AE_KDD99.csv"
         file = open(file=filepath, mode='w', newline='')
-        writer = csv.writer(csvfile=file, dialect='excel')
+        writer = csv.writer(file, dialect='excel')
         header = ['index', 'label', 'prediction']
         writer.writerow(header)
         for item in self.index_label_prediction:
@@ -140,10 +141,11 @@ class AE_KDD99_trainer():
             cls = X[self.kmeans.labels_ == i]
             dis = []
             for k in range(cls.shape[0]):
-                dis.append(abs(self.center[i] - cls[k]))
-            print(len(dis))
+                dis.append(self.manhattan_distance(self.center[i], cls[k]))
             # select the 0.9 quantile of dis as radius
             radius.append(np.quantile(dis, 0.9))
         return radius
-    def predict(self, X):
-        pass
+
+    def manhattan_distance(self, x, y):
+        """ 曼哈顿距离 """
+        return np.sum(abs(x - y))

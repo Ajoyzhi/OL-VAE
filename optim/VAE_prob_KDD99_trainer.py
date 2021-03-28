@@ -102,7 +102,7 @@ class VAE_prob_KDD99_trainer():
         # save test result into csv
         filepath = Test_Log_Path + "VAE_prob_KDD99.csv"
         file = open(file=filepath, mode='w', newline='')
-        writer = csv.writer(csvfile=file, dialect='excel')
+        writer = csv.writer(file, dialect='excel')
         header = ['index', 'label', 'prediction']
         writer.writerow(header)
         for item in self.index_label_prediction:
