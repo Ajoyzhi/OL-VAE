@@ -21,7 +21,7 @@ from other.log import init_log
     into /other/log/test/VAE_prob_KDD99.csv
 """
 class VAE_prob_KDD99_trainer():
-    def __init__(self, net, trainloader:DataLoader, testloader:DataLoader, epoch:int=10, lr:float=0.001, weight_decay:float=1e-6, simple_num:int=10, alpha:float=0.5):
+    def __init__(self, net, trainloader:DataLoader, testloader:DataLoader, epoch:int=10, lr:float=0.001, weight_decay:float=1e-6, simple_num:int=10, alpha:float=2.0e+19):
         self.net = net
         self.trainloader = trainloader
         self.testloader = testloader
@@ -33,7 +33,6 @@ class VAE_prob_KDD99_trainer():
         self.alpha = alpha
         
         self.train_logger = init_log(Train_Log_Path, "VAE_prob")
-        # self.test_logger = init_log(Test_Log_Path, "VAE_prob")
         self.train_time = 0.0
         self.test_time = 0.0
         self.index_label_prediction = []
@@ -61,13 +60,13 @@ class VAE_prob_KDD99_trainer():
                 count_batch += 1
 
             epoch_using_time = time.time() -epoch_start_time
-            self.train_logger.info("\n Epoch{}/{} triaining tme of each batch:{:.3f}\t average loss of each batch:{:.8f}"
+            self.train_logger.info("Epoch{}/{} triaining tme of each batch:{:.3f}\t average loss of each batch:{:.8f}"
                                    .format(epoch+1, self.epoch, epoch_using_time/ count_batch, epoch_loss / count_batch))
             train_loss += epoch_loss
-        self.train_time = time.time() -start_time
+        self.train_time = time.time() - start_time
         self.train_logger.info("training time:{:.3f}\t average training loss of each epoch:{:.8f}".format(self.train_time, train_loss/self.epoch))
         self.train_logger.info("Finish training VAE prob with KDD99.")
-        
+
     def test(self):
         index_list = []
         prediction_list = []
@@ -86,9 +85,14 @@ class VAE_prob_KDD99_trainer():
                 prob_data = 0.0
                 for i in range(self.L):
                     z = self.net.reparameterize(mu, logvar)
+                    # tensor[[1*15]]
                     recon_data = self.net.decode(z)
-                    prob_var = recon_data - data
-                    prob = multivariate_normal.pdf(data, recon_data, np.diag(prob_var))
+                    data_minus = (data - recon_data).numpy()
+                    cov_data1 = 1/14 * data_minus.T.dot(data_minus)
+                    cov_data = cov_data1 + 0.0001 * np.identity(15)
+                    # tensor[15]
+                    mu_data = recon_data.squeeze(0)
+                    prob = multivariate_normal.pdf(data, mu_data, cov_data)
                     prob_data += prob
                 prob_data /= self.L
                 
@@ -111,8 +115,8 @@ class VAE_prob_KDD99_trainer():
    
 def loss_func(recon_x, x, mu, logvar):
     loss_func = torch.nn.MSELoss()
-    BCK = loss_func(recon_x, x)
+    BCE = loss_func(recon_x, x)
     
     var = logvar.exp()
-    KL = 0.5 * torch.sum(1 + logvar - mu.pow(2) - var)
-    return BCK + KL
+    KL = -0.5 * torch.sum(1 + logvar - mu.pow(2) - var)
+    return BCE + KL

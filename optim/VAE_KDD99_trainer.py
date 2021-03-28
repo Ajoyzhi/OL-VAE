@@ -83,7 +83,7 @@ class VAE_Kdd99_trainer():
             train_loss += epoch_loss
             epoch_train_time = time.time() - epoch_start_time
             # epoch_loss就是一次迭代所有数据的总误差
-            self.train_logger.info("\n Epoch{}/{} triaining tme of each batch:{:.3f}\t average loss of each batch:{:.8f}".
+            self.train_logger.info("Epoch{}/{} triaining tme of each batch:{:.3f}\t average loss of each batch:{:.8f}".
                         format(epoch+1, self.epochs, epoch_train_time, epoch_loss/count_batch))
         # 计算所有数据的训练时间和每个epoch的训练损失
         self.train_time = time.time() - start_time
@@ -219,9 +219,8 @@ def loss_function(recon_x, x, mu, logvar):
     # see Appendix B from VAE paper:
     # Kingma and Welling. Auto-Encoding Variational Bayes. ICLR, 2014
     # https://arxiv.org/abs/1312.6114
-    # 0.5 * sum(1 + log(sigma^2) - mu^2 - sigma^2)
+    # -0.5 * sum(1 + log(sigma^2) - mu^2 - sigma^2)
     var = logvar.exp()
-    std = torch.exp(0.5 * logvar)
     KLD = -0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp())
     return BCE + KLD, var
 

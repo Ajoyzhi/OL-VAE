@@ -57,7 +57,8 @@ class VAE_AE_test():
         self.FPR.append(FPR)
 
         # VAE prob
-        vae_prob_trainer = VAE_prob_KDD99_trainer(vae_net, self.trainloader, self.testloader, self.epoch, self.lr, self.weight_decay, self.prob_simple_num, self.prob_alpha)
+        vae_prob_net = VAE_KDD99()
+        vae_prob_trainer = VAE_prob_KDD99_trainer(vae_prob_net, self.trainloader, self.testloader, self.epoch, self.lr, self.weight_decay, self.prob_simple_num, self.prob_alpha)
         vae_prob_trainer.train()
         vae_prob_trainer.test()
         self.train_time.append(vae_prob_trainer.train_time)
@@ -78,8 +79,8 @@ class VAE_AE_test():
         performance = list(zip(self.accurancy, self.precision, self.FPR, self.detection_time, self.train_time))
         header = ['accurancy', 'precision', 'FPR', 'detection time', 'train time']
         file_path = Performance + "vae_ae_comp.csv"
-        file = open(file=file_path, mode='w', newline=' ')
-        writer = csv.writer(csvfile=file, dialect='excel')
+        file = open(file=file_path, mode='w', newline='')
+        writer = csv.writer(file, dialect='excel')
         writer.writerow(header)
         for item in performance:
             writer.writerow(item)
@@ -87,12 +88,12 @@ class VAE_AE_test():
 
 def metric(index_label_prediction:list):
     index, label, prediction = zip(*index_label_prediction)
-    TP = 0
-    TN = 0
-    FP = 0
-    FN = 0
+    TP = 0.0001
+    TN = 0.0001
+    FP = 0.0001
+    FN = 0.0001
     for i in range(len(index)):
-        if label[i] == 1:
+        if label[i] != 0:
             if prediction[i] == 1:
                 TP += 1
             else:
@@ -111,7 +112,7 @@ def metric(index_label_prediction:list):
 
 def my_bar(y, name:str):
     bar_width = 0.1
-    x = [0.3, 0.6, 0.9]
+    x = [0.25, 0.5, 0.75]
     x_label = ['AE', 'VAE', 'VAE prob']
     plt.bar(x[0], height=y[0], width=bar_width, hatch='x', color='w', label="AE", edgecolor='k')
     plt.bar(x[1], height=y[1], width=bar_width, hatch='+', color='w', label="VAE", edgecolor='k')
@@ -120,7 +121,7 @@ def my_bar(y, name:str):
     plt.xlim((0.0, 1.0))
     plt.ylabel(name)
     plt.title(name + ' of AE, VAE and VAE prob')
-    plt.legend()
+    plt.legend(loc="upper right")
     # save the figure
     plt.savefig(Picture + name + ".jpg")
     plt.show()

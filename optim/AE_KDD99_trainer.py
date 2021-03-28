@@ -22,7 +22,7 @@ from other.path import Train_Log_Path,Test_Log_Path
     into /other/log/test/AE_KDD99.csv
 """
 class AE_KDD99_trainer():
-    def __init__(self, net:AE_KDD99, trainloader:DataLoader, testloader:DataLoader, epoch:int=10, lr:float=0.001, weight_decay:float=1e-6, cluster_num:int=2):
+    def __init__(self, net:AE_KDD99, trainloader:DataLoader, testloader:DataLoader, epoch:int=10, lr:float=0.001, weight_decay:float=1e-6, cluster_num:int=4):
         self.net = net
         self.trainloader = trainloader
         self.testloader = testloader
