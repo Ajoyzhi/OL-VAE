@@ -6,11 +6,11 @@ class VAE_KDD99(nn.Module):
     def __init__(self):
         super(VAE_KDD99, self).__init__()
 
-        self.fc1 = nn.Linear(15, 50)
-        self.fc21 = nn.Linear(50, 15)
-        self.fc22 = nn.Linear(50, 15)
-        self.fc3 = nn.Linear(15, 50)
-        self.fc4 = nn.Linear(50, 15)
+        self.fc1 = nn.Linear(9, 16)
+        self.fc21 = nn.Linear(16, 9)
+        self.fc22 = nn.Linear(16, 9)
+        self.fc3 = nn.Linear(9, 16)
+        self.fc4 = nn.Linear(16, 9)
 
     def encode(self, x):
         h1 = F.relu(self.fc1(x))
@@ -27,6 +27,6 @@ class VAE_KDD99(nn.Module):
         return torch.sigmoid(self.fc4(h3))
 
     def forward(self, x):
-        mu, logvar = self.encode(x.view(-1, 15))
+        mu, logvar = self.encode(x.view(-1, 9))
         z = self.reparameterize(mu, logvar)
         return self.decode(z), mu, logvar

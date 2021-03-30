@@ -1,10 +1,8 @@
 import numpy as np
 import csv
 
-from sklearn import preprocessing
-
 class Util():
-    def __init__(self, src_path, number_path, feature_path, des_path, ratio: float, isTrain, FEATURES: int = 15):
+    def __init__(self, src_path, number_path, feature_path, des_path, ratio: float, isTrain, FEATURES: int = 9):
         self.src_path = src_path
         self.number_path = number_path
         self.feature_path = feature_path
@@ -23,7 +21,7 @@ class Util():
     """
         功能：读取src_path中的数据，数值化后，输出到number_path中
                如果是训练数据，就只将正常数据输出到number_path中；
-               如果是测试数据，就将所有数据输出到number_path中
+               如果是测试数据，就将正常数据和dos攻击数据输出到number_path中
         运行一次即可
     """
     def get_data(self):
@@ -43,15 +41,15 @@ class Util():
                     if int(temp_line[41]) == 0:
                         self.train_count += 1
                         csv_writer.writerow(temp_line)
-                # 否则将DoS攻击数据均输出到文件中。
+                # 否则将正常数据和DoS攻击数据均输出到文件中。
                 else:
-                    if int(temp_line[41]) in {10, 11, 13, 14, 16, 17}:
+                    if int(temp_line[41]) in {0, 10, 13, 14, 16, 17}:
                         self.test_count += 1
                         csv_writer.writerow(temp_line)
         data_file.close()
 
     """
-        功能：从number_path中（41个特征）选择指定特征（15个），输出到feature_path中。
+        功能：从number_path中（41个特征）选择指定特征（9个），输出到feature_path中。
         如果不修改选择的特征，运行一次即可
     """
     def select_features(self):
@@ -64,44 +62,41 @@ class Util():
             # 对每行数据进行特征选择
             for row in csv_reader:
                 temp_line = np.array(row)
-                buffer_line[0] = temp_line[1]
-                buffer_line[1] = temp_line[2]
-                buffer_line[2] = temp_line[3]
-                buffer_line[3] = temp_line[4]
-                buffer_line[4] = temp_line[5]
-                buffer_line[5] = temp_line[11]
-                buffer_line[6] = temp_line[22]
-                buffer_line[7] = temp_line[23]
-                buffer_line[8] = temp_line[28]
-                buffer_line[9] = temp_line[30]
-                buffer_line[10] = temp_line[31]
-                buffer_line[11] = temp_line[32]
-                buffer_line[12] = temp_line[33]
-                buffer_line[13] = temp_line[35]
-                buffer_line[14] = temp_line[36]
-                buffer_line[15] = temp_line[41]
+                buffer_line[0] = temp_line[1]   # protocol_type -- 离散型
+                buffer_line[1] = temp_line[4]   # src_bytes
+                buffer_line[2] = temp_line[22]  # count
+                buffer_line[3] = temp_line[23]  # srv_count
+                buffer_line[4] = temp_line[30]  # srv_diff_host_rate
+                buffer_line[5] = temp_line[31] # dst_host_count
+                buffer_line[6] = temp_line[32] # dst_host_srv_count
+                buffer_line[7] = temp_line[36] # dst_host_src_diff_host_rate
+                buffer_line[8] = temp_line[0]   # duration
+                buffer_line[9] = temp_line[41] # label
                 # 将选择好的数据行输出到文件中
                 csv_writer.writerow(buffer_line)
-
         data_file.close()
 
     """
-        功能：从feature_path中获取已数值化且选择完特征（15个）的数据，实现按比例ratio加载、归一化和标准化
+        功能：从feature_path中获取已数值化且选择完特征（9个）的数据，实现按比例ratio加载、标准化和归一化
               可以获得归一化后的data数组和label数组；将数组合并输出到dst_path中
+            标准化：
+                连续型数据：l2 norm
+                离散型数据：不处理
+            归一化：
+                连续数据：最大最小归一化
+                离散数据：最大最小归一化
         输入：data_label（array）；ratio [0,1]
         每次都要运行
     """
     def normalizations(self):
-        # 从文件中加载所有数据（15个特征+1个label）
+        # 从文件中加载所有数据（9个特征+1个label）
         data_label = np.loadtxt(self.feature_path, dtype=float, delimiter=",", skiprows=0)
         # rows = 97278
         rows = data_label.shape[0]
-
         # 按比例随机选择数据
         number = int(rows * self.ratio)
-        # array 97 * 16
+        # array 97 * 10
         data_sample = sample(data_label, number)
-
         # 将样本数据分成数据data和标签label
         temp_data = np.hsplit(data_sample,(self.feature, self.feature+1))
         self.data = temp_data[0]
@@ -109,10 +104,23 @@ class Util():
 
         # 对数据部分进行标准化
         self.data = normalize(self.data)
-
+        # 对数据部分进行归一化
+        self.data = min_max(self.data)
         # 将采样的数据输出到文件中
         temp_data_label = np.array(np.hstack((self.data, self.label)))
         np.savetxt(self.des_path, temp_data_label,fmt='%.5f', delimiter=',')
+
+        # 统计数据中的正常和异常数据
+        normal = 0
+        abnormal = 0
+        for item in self.label:
+            if item == 0:
+                normal += 1
+            else:
+                abnormal += 1
+
+        if not self.isTrain:
+            print("normal data number:{},abnormal data number:{} in test set.".format(normal, abnormal))
 
 # 中间代码
 def handle_protocol(protocal):
@@ -143,9 +151,20 @@ def handle_flag(flag):
     return flag_list.index(flag)+1
 
 def handle_label(label):
-    """ 数值化标签 """
-    label_list = ['normal.',
-                  'buffer_overflow.', 'httptunnel.', 'loadmodule.', 'perl.', 'ps.', 'rootkit.', 'sqlattack.', 'xterm.',
+    """
+    数值化标签DoS:
+        apache2 -- 9
+        back -- 10 v
+        land -- 11
+        mailbomb -- 12
+        neptune -- 13 v
+        pod -- 14 v
+        precesstable --15
+        smurf -- 16 v
+        teardrop -- 17 v
+        udpstorm -- 18
+    """
+    label_list = ['normal.','buffer_overflow.', 'httptunnel.', 'loadmodule.', 'perl.', 'ps.', 'rootkit.', 'sqlattack.', 'xterm.',
                   'apache2.', 'back.', 'land.', 'mailbomb.', 'neptune.', 'pod.', 'processtable.', 'smurf.', 'teardrop.', 'udpstorm.',
                   'ftp_write.', 'guess_passwd.', 'imap.', 'multihop.', 'named.', 'phf.', 'sendmail.', 'snmpgetattack.', 'snmpguess.',
                   'spy.',  'warezmaster.', 'warezclient.', 'worm.', 'xlock.', 'xsnoop.',
@@ -153,32 +172,28 @@ def handle_label(label):
     return label_list.index(label)
 
 def sample(array, number):
-    # 将矩阵转化为list，随机采样，返回array
     rand_arr = np.arange(array.shape[0])
+    # 打乱矩阵顺序
     np.random.shuffle(rand_arr)
     data_sample = array[rand_arr[0:number]]
     return data_sample
 
+def z_score_normalization(x):
+    x = (x - np.mean(x)) / np.std(x)
+    return x
+
+def min_max_normalization(x):
+    x = (x - np.min(x)) / (np.max(x) - np.min(x))
+    return x
+
 def normalize(x_data):
-    # 选择所有特征进行最大最小化
-    min_max_scaler = preprocessing.MinMaxScaler()
-    x_data_min_max = min_max_scaler.fit_transform(x_data)
-    # 97 * 15
-    # print("\nafter min_max normalizing, the x_data is:", x_data_min_max)
+    """标准化数据 -- 只考虑连续数据，第一个特征proto为离散型"""
+    for i in range(1, x_data.shape[1]):
+        x_data[:, i] = z_score_normalization(x_data[:, i])
+    return x_data
 
-    # 选择连续数据进行归一化(除了第1-3列)
-    x_data_seq_T = x_data_min_max.T[3:-1]
-    # 97 * 12
-    x_data_seq_array = x_data_seq_T.T
-    x_data_z_score = preprocessing.scale(x_data_seq_array)
-    # print("\nafter z_score normalizing, the x_data is :", x_data_z_score)
-
-    # 归一化和最大最小化的矩阵合并为一个array
-    x_1to3_T = x_data_min_max.T[0:4]
-    # 97 * 3
-    x_1to3 = x_1to3_T.T
-    # 在列上合并 97 * 15
-    data = np.hstack((x_1to3, x_data_z_score))
-
-    return data
-
+def min_max(x_data):
+    """最大最小化数据"""
+    for i in range(x_data.shape[1]):
+        x_data[:, i] = min_max_normalization(x_data[:, i])
+    return x_data
