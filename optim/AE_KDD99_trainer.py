@@ -36,7 +36,6 @@ class AE_KDD99_trainer():
         self.radius = []
         
         self.train_logger = init_log(Train_Log_Path, "AE_KDD99")
-        # self.test_logger = init_log(Test_Log_Path, "AE_KDD99")
         self.train_time = 0.0
         self.test_time = 0.0
         self.get_param_time = 0.0
@@ -57,7 +56,7 @@ class AE_KDD99_trainer():
                 data, _, _ = item
                 data = data.float()
                 middle_data, data_recon = self.net(data)
-                # 对batch数据每一列求和（10*15）->(1*15)
+                # 对batch数据每一列求和（batch_szie*15）->(1*15)
                 scores = torch.sum((data_recon - data) ** 2, dim=tuple(range(1, data_recon.dim())))
                 loss = torch.mean(scores)
                 optimizer.zero_grad()
@@ -67,7 +66,7 @@ class AE_KDD99_trainer():
                 epoch_loss += loss
                 count_batch += 1
             using_time = time.time() - epoch_start_time
-            self.train_logger.info("Epoch{}/{} triaining tme of each batch:{:.3f}\t average loss of each batch:{:.8f}"
+            self.train_logger.info("Epoch {}/{} triaining tme of each batch:{:.3f}\t average loss of each batch:{:.8f}"
                                    .format(epoch+1, self.epoch, using_time/count_batch, epoch_loss/count_batch))
             train_loss += epoch_loss
         self.train_time = time.time() - start_time
@@ -88,8 +87,8 @@ class AE_KDD99_trainer():
                 # 10 * 15
                 loss = (data_recon - data) ** 2
                 # get each data loss 97 * 15
-                for item in loss:
-                    loss_all.append(item.numpy())
+                for each_data_loss in loss:
+                    loss_all.append(each_data_loss.numpy())
 
             loss_all = np.array(loss_all)
             self.kmeans = KMeans(n_clusters=self.cluster).fit(loss_all)
@@ -123,13 +122,13 @@ class AE_KDD99_trainer():
                 else:
                     prediction_list.append(0)# normal
 
-            self.index_label_prediction = list(zip(index_list, label_list, prediction_list))
+            self.index_label_prediction = list(zip(index_list, label_list, prediction_list, index_list))
         self.test_time = time.time() - start_time
         # save test result into csv
         filepath = Test_Log_Path + "AE_KDD99.csv"
         file = open(file=filepath, mode='w', newline='')
         writer = csv.writer(file, dialect='excel')
-        header = ['index', 'label', 'prediction']
+        header = ['index', 'label', 'prediction', 'index']
         writer.writerow(header)
         for item in self.index_label_prediction:
             writer.writerow(item)

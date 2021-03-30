@@ -7,7 +7,9 @@ if __name__ == '__main__':
                                       num_workers=0).loader  # 97个数据
     kdd99_test_loader = KDD99_Loader(ratio=0.001, isTrain=False, preprocess=False, batch_size=1, shuffle=False,
                                      num_workers=0).loader  # 300个数据
-    vae_ae_comp = VAE_AE_test(trainloader=kdd99_trian_loader, testlaoder=kdd99_test_loader, epoch=50)
+    vae_ae_comp = VAE_AE_test(trainloader=kdd99_trian_loader, testloader=kdd99_test_loader,
+                              ae_epoch=50, vae_epoch=30, vae_prob_epoch=30, ae_cluster_num=4, vae_sample_num=10,
+                              vae_prob_sample_num=10, vae_prob_alpha=4.62e+19)
     vae_ae_comp.get_param()
     vae_ae_comp.save_data()
     vae_ae_comp.my_plot()

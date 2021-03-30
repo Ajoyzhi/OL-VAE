@@ -21,7 +21,7 @@ from other.log import init_log
     into /other/log/test/VAE_prob_KDD99.csv
 """
 class VAE_prob_KDD99_trainer():
-    def __init__(self, net, trainloader:DataLoader, testloader:DataLoader, epoch:int=10, lr:float=0.001, weight_decay:float=1e-6, simple_num:int=10, alpha:float=2.0e+19):
+    def __init__(self, net, trainloader:DataLoader, testloader:DataLoader, epoch:int=10, lr:float=0.001, weight_decay:float=1e-6, simple_num:int=10, alpha:float=1.5e+19):
         self.net = net
         self.trainloader = trainloader
         self.testloader = testloader
@@ -71,6 +71,7 @@ class VAE_prob_KDD99_trainer():
         index_list = []
         prediction_list = []
         label_list = []
+        prob_list = []
 
         self.net.eval()
         start_time = time.time()
@@ -89,25 +90,27 @@ class VAE_prob_KDD99_trainer():
                     recon_data = self.net.decode(z)
                     data_minus = (data - recon_data).numpy()
                     cov_data1 = 1/14 * data_minus.T.dot(data_minus)
+                    # 防止协方差非半正定
                     cov_data = cov_data1 + 0.0001 * np.identity(15)
                     # tensor[15]
                     mu_data = recon_data.squeeze(0)
                     prob = multivariate_normal.pdf(data, mu_data, cov_data)
                     prob_data += prob
                 prob_data /= self.L
+                prob_list.append(prob_data)
                 
                 if prob_data < self.alpha:
                     prediction_list.append(1)# anomaly
                 else:
                     prediction_list.append(0) # normal
 
-            self.index_label_prediction = list(zip(index_list, label_list, prediction_list))
+            self.index_label_prediction = list(zip(index_list, label_list, prediction_list, prob_list))
         self.test_time = time.time() - start_time
         # save test result into csv
         filepath = Test_Log_Path + "VAE_prob_KDD99.csv"
         file = open(file=filepath, mode='w', newline='')
         writer = csv.writer(file, dialect='excel')
-        header = ['index', 'label', 'prediction']
+        header = ['index', 'label', 'prediction','prob']
         writer.writerow(header)
         for item in self.index_label_prediction:
             writer.writerow(item)
@@ -115,8 +118,8 @@ class VAE_prob_KDD99_trainer():
    
 def loss_func(recon_x, x, mu, logvar):
     loss_func = torch.nn.MSELoss()
-    BCE = loss_func(recon_x, x)
+    MSE = loss_func(recon_x, x)
     
     var = logvar.exp()
     KL = -0.5 * torch.sum(1 + logvar - mu.pow(2) - var)
-    return BCE + KL
+    return MSE + KL

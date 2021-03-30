@@ -7,6 +7,7 @@ import time
 import csv
 from scipy.stats import multivariate_normal
 import numpy as np
+import math
 from other.path import Model
 
 """
@@ -24,7 +25,7 @@ from other.path import Model
 # 数据集和损失函数是相关联的，所以必须对不同的损失函数（数据集）建立不同的trainer
 class VAE_Kdd99_trainer():
     def __init__(self, net, trainloader: DataLoader, testloader: DataLoader=None, epochs: int = 10, lr: float = 0.001,
-                  weight_decay: float = 1e-6, sample_num:int=10):
+                  weight_decay: float = 1e-6, sample_num:int=10, quantile:float=0.9):
         self.net = net
         self.trainloader = trainloader
         self.testloader = testloader
@@ -34,12 +35,14 @@ class VAE_Kdd99_trainer():
         self.weight_decay = weight_decay
         # 采样次数
         self.M = sample_num
+        self.quantile = quantile
 
         # 保存数据
         self.train_logger = init_log(Train_Log_Path, "VAE_KDD99")
         self.train_loss = 0.0
         # 异常判断的门限值
-        self.threshold = 5e-9
+        self.threshold_mean = 0.0
+        self.threshold_quantile = 0.0
         self.train_mu = []
         self.train_var = []
         self.train_loss = []
@@ -69,10 +72,8 @@ class VAE_Kdd99_trainer():
                 data, _, _ = item
                 optimizer.zero_grad()
                 data = data.float()
-                # print("data type: float32", data.dtype)
-                # 执行的是forward函数 mu一个15维的向量；logvar为15维的向量
                 recon_batch, mu, logvar = self.net(data)
-                batch_loss, _ = loss_function(recon_batch, data, mu, logvar)
+                batch_loss, var = loss_function(recon_batch, data, mu, logvar)
                 batch_loss.backward()
                 optimizer.step()
                 # 一次迭代中所有数据的误差loss
@@ -97,6 +98,8 @@ class VAE_Kdd99_trainer():
         var_list = []
         loss_list = []
 
+        mu_var = []
+
         self.train_logger.info("Starting getting the mean and variance of normal data...")
         start_time = time.time()
         self.net.eval()
@@ -105,46 +108,52 @@ class VAE_Kdd99_trainer():
             for item in self.trainloader:
                 data, _, _ = item
                 data = data.float()
+                # recon,mu,var:batch * 9 loss:标量
                 recon, mu, logvar = self.net(data)
                 loss, var = loss_function(recon, data, mu, logvar)
                 count_batch += 1
-                # 求每个batch（batch=10个数据）的平均值向量
-                batch_mu_list = torch.mean(mu, dim=0)
-                batch_var_list = torch.mean(var, dim=0)
-                batch_loss_list = torch.mean(loss, dim=0)
+                # mean of batch: 1 * 15
+                mu_batch_mean = torch.mean(mu, dim=0)
+                var_batch_mean = torch.mean(var, dim=0)
+                mu_list.append(mu_batch_mean)
+                var_list.append(var_batch_mean)
+                loss_list.append(loss)
 
-                mu_list.append(batch_mu_list)
-                var_list.append(batch_var_list)
-                loss_list.append(batch_loss_list)
+                # record the mu and var of each data to avoid computing again
+                mu_var_list = list(zip(mu, var))
+                mu_var.append(mu_var_list)
 
-                # 获取正常数据分布的阈值
-                mu_numpy = mu.numpy()
-                var_numpy = var.numpy()
-                std = torch.exp(0.5 * logvar)
-                std_numpy = std.numpy()
-                normaldata_prob = 0.0
-                for i in range(len(mu_numpy)):
-                    mu = torch.from_numpy(mu_numpy[i])
-                    std = torch.from_numpy(std_numpy[i])
-                    var = torch.from_numpy(var_numpy[i])
-                    # 每个数据隐变量采样M个数据的概率mean
-                    eachdata_prob = prob_avrg(self.M, mu, std, mu, var)
-                    normaldata_prob += eachdata_prob
-                normaldata_prob /= len(mu_numpy)
+        # mean mu and var of all normal data
+        self.train_mu = list_avrg(mu_list)
+        self.train_var = list_avrg(var_list)
+        self.train_loss = list_avrg(loss_list)
 
-            self.threshold = normaldata_prob
-            self.train_mu = list_avrg(mu_list)
-            self.train_var = list_avrg(var_list)
-            self.train_loss = list_avrg(loss_list)
+        print("normal data mu:", mu_list)
+        print("normal data var:", var_list)
 
+        # get threshold
+        normaldata_prob = []
+        for mu_var_item in mu_var:
+            mu_batch, var_batch = zip(*mu_var_item)
+            for i in range(len(mu_batch)):
+                # 每个数据隐变量采样M个数据的概率mean
+                mu_each_data = mu_batch[i]
+                var_each_data = var_batch[i]
+                std_each_data = torch.sqrt(var_each_data)
+                eachdata_prob = prob_avrg(self.M, mu_each_data, std_each_data, self.train_mu, self.train_var)
+                normaldata_prob.append(eachdata_prob)
+
+        self.threshold_mean = list_avrg(normaldata_prob)
+        self.threshold_quantile = np.quantile(normaldata_prob, self.quantile)
         self.get_param_time = time.time() - start_time
 
-        self.train_logger.info("the threshold is {}\n "
+        self.train_logger.info("the threshold_mean is {}\n "
+                               "the threshold_quantile is {}\n"
                          "the mean of normal distribution is {}\n"
                          "the variance of normal distribution is {}\n"
                          "the loss of training data is {:.8f}\n"
                          "the using time of getting param is {:.3f}\n"
-                         .format(self.threshold, self.train_mu, self.train_var, self.train_loss, self.get_param_time))
+                         .format(self.threshold_mean, self.threshold_quantile, self.train_mu, self.train_var, self.train_loss, self.get_param_time))
         self.train_logger.info("Finish getting parameters.")
 
     """
@@ -157,6 +166,7 @@ class VAE_Kdd99_trainer():
         index_list = []
         prediction_list = []
         label_list = []
+        prob_list = []
 
         start_time = time.time()
         self.net.eval()
@@ -166,22 +176,27 @@ class VAE_Kdd99_trainer():
                 data = data.float()
                 # 如果batch为1，则以下变量对应一个数据的loss、mu、logvar
                 _, mu, logvar = self.net(data)
+                print("test data label:", label,
+                      "test data mu:", mu,
+                      "test data var:", torch.exp(logvar))
                 std = torch.exp(0.5 * logvar)
-                avrg_prob = prob_avrg(self.M, mu, std, self.train_mu, self.train_var)
+                data_prob = prob_avrg(self.M, mu, std, self.train_mu, self.train_var)
                 # 统计结果
+                prob_list.append(data_prob)
                 index_list.append(index)
                 label_list.append(label)
-                if avrg_prob < self.threshold:
+                if data_prob < self.threshold_quantile:
                     prediction_list.append(1)# 异常
                 else:
                     prediction_list.append(0)# 正常
-            self.index_label_prediction = list(zip(index_list, label_list, prediction_list))
+
+            self.index_label_prediction = list(zip(index_list, label_list, prediction_list, prob_list))
             self.test_time = time.time() - start_time
         # save test result into csv
         filepath = Test_Log_Path + "VAE_KDD99.csv"
         file = open(file=filepath, mode='w', newline='')
         writer = csv.writer(file, dialect='excel')
-        header = ['index', 'label', 'prediction']
+        header = ['index', 'label', 'prediction', 'prob']
         writer.writerow(header)
         for item in self.index_label_prediction:
             writer.writerow(item)
@@ -212,9 +227,9 @@ class VAE_Kdd99_trainer():
     """
 # Reconstruction + KL divergence losses summed over all elements and batch
 def loss_function(recon_x, x, mu, logvar):
-    # 累加重构误差
+    # 每个batch和每个维度的平均，得到标量
     loss_rec = torch.nn.MSELoss()
-    BCE = loss_rec(recon_x, x)
+    MSE = loss_rec(recon_x, x)
     # BCE = F.binary_cross_entropy(recon_x, x.view(-1, 15), reduction='sum')
     # see Appendix B from VAE paper:
     # Kingma and Welling. Auto-Encoding Variational Bayes. ICLR, 2014
@@ -222,7 +237,7 @@ def loss_function(recon_x, x, mu, logvar):
     # -0.5 * sum(1 + log(sigma^2) - mu^2 - sigma^2)
     var = logvar.exp()
     KLD = -0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp())
-    return BCE + KLD, var
+    return MSE + KLD, var
 
 # compute the mean of data in list
 def list_avrg(list):
@@ -236,18 +251,18 @@ def list_avrg(list):
     input:  M: the number of sample(int); 
             simple_mu: the mu of simple distribution(15-dim vector)
             simple_std: the standard of simple distribution(15-dim vector)
-            prob_mu: the mu of normal distribution(15-dim vector)
-            prob_var:the standard of normal distribution(15-dim vector)
+            nor_mu: the mu of normal distribution(15-dim vector)
+            nor_var:the standard of normal distribution(15-dim vector)
     return: the mean probability of M samples  
 """
-def prob_avrg(M: int, simple_mu, simple_std, prob_mu, prob_var):
+def prob_avrg(M: int, simple_mu, simple_std, nor_mu, nor_var):
     prob = 0.0
     for i in range(M):
         # get M simples
         eps = torch.randn_like(simple_std)
         z = simple_mu + eps * simple_std
         # get prob
-        each_prob = multivariate_normal.pdf(z, prob_mu, np.diag(prob_var))
+        each_prob = multivariate_normal.pdf(z, nor_mu, np.diag(nor_var))
         # compute the sum prob of M simples
         prob += each_prob
     prob = prob / M

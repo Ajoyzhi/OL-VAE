@@ -1,5 +1,6 @@
 import matplotlib.pyplot as plt
 import csv
+import math
 from other.path import Picture, Performance
 from network.AE_KDD99 import AE_KDD99
 from network.VAE_KDD99 import VAE_KDD99
@@ -12,19 +13,28 @@ from optim.VAE_prob_KDD99_trainer import VAE_prob_KDD99_trainer
    no print
 """
 class VAE_AE_test():
-    def __init__(self, trainloader, testlaoder, epoch:int=10, lr:float=0.001, weight_decay:float=1e-6, prob_simple_num:int=10, prob_alpha:float=0.5):
+    def __init__(self, trainloader, testloader, ae_epoch, vae_epoch, vae_prob_epoch, ae_cluster_num, vae_sample_num, vae_prob_sample_num, vae_prob_alpha,
+                 lr:float=0.001, weight_decay:float=1e-6):
         self.trainloader = trainloader
-        self.testloader = testlaoder
-        self.epoch = epoch
+        self.testloader = testloader
         self.lr = lr
         self.weight_decay = weight_decay
 
-        self.prob_simple_num = prob_simple_num
-        self.prob_alpha = prob_alpha
+        self.ae_epoch = ae_epoch
+        self.vae_epoch = vae_epoch
+        self.vae_prob_epoch = vae_prob_epoch
+
+        self.ae_cluster_num = ae_cluster_num
+        self.vae_sample_num = vae_sample_num
+
+        self.prob_sample_num = vae_prob_sample_num
+        self.prob_alpha = vae_prob_alpha
 
         self.accurancy = []
         self.precision = []
+        self.recall = []
         self.FPR = []
+        self.MCC = []
         self.train_time = []
         self.detection_time = []
 
@@ -32,53 +42,61 @@ class VAE_AE_test():
     def get_param(self):
         # AE
         ae_net = AE_KDD99()
-        ae_trainer = AE_KDD99_trainer(ae_net, self.trainloader, self.testloader, self.epoch, self.lr, self.weight_decay)
+        ae_trainer = AE_KDD99_trainer(ae_net, self.trainloader, self.testloader, self.ae_epoch, self.lr, self.weight_decay, self.ae_cluster_num)
         ae_trainer.train()
         ae_trainer.get_param()
         ae_trainer.test()
         self.train_time.append(ae_trainer.train_time)
         self.detection_time.append(ae_trainer.get_param_time+ae_trainer.test_time)
-        acc, pre, FPR = metric(ae_trainer.index_label_prediction)
+        acc, pre, recall, FPR, MCC = metric(ae_trainer.index_label_prediction)
         self.accurancy.append(acc)
         self.precision.append(pre)
+        self.recall.append(recall)
         self.FPR.append(FPR)
+        self.MCC.append(MCC)
 
         # VAE
         vae_net = VAE_KDD99()
-        vae_trainer = VAE_Kdd99_trainer(vae_net, self.trainloader, self.testloader, self.epoch, self.lr, self.weight_decay)
+        vae_trainer = VAE_Kdd99_trainer(vae_net, self.trainloader, self.testloader, self.vae_epoch, self.lr, self.weight_decay, self.vae_sample_num)
         vae_trainer.train()
         vae_trainer.get_normal_parm()
         vae_trainer.test()
         self.train_time.append(vae_trainer.train_time)
         self.detection_time.append(vae_trainer.get_param_time+vae_trainer.test_time)
-        acc, pre, FPR = metric(vae_trainer.index_label_prediction)
+        acc, pre, recall, FPR, MCC = metric(vae_trainer.index_label_prediction)
         self.accurancy.append(acc)
         self.precision.append(pre)
+        self.recall.append(recall)
         self.FPR.append(FPR)
+        self.MCC.append(MCC)
 
         # VAE prob
         vae_prob_net = VAE_KDD99()
-        vae_prob_trainer = VAE_prob_KDD99_trainer(vae_prob_net, self.trainloader, self.testloader, self.epoch, self.lr, self.weight_decay, self.prob_simple_num, self.prob_alpha)
+        vae_prob_trainer = VAE_prob_KDD99_trainer(vae_prob_net, self.trainloader, self.testloader, self.vae_prob_epoch, self.lr, self.weight_decay, self.prob_sample_num, self.prob_alpha)
         vae_prob_trainer.train()
         vae_prob_trainer.test()
         self.train_time.append(vae_prob_trainer.train_time)
         self.detection_time.append(vae_prob_trainer.test_time)
-        acc, pre, FPR = metric(vae_prob_trainer.index_label_prediction)
+        acc, pre, recall, FPR, MCC = metric(vae_prob_trainer.index_label_prediction)
         self.accurancy.append(acc)
         self.precision.append(pre)
+        self.recall.append(recall)
         self.FPR.append(FPR)
+        self.MCC.append(MCC)
 
     def my_plot(self):
-        my_bar(self.accurancy, "accurancy")
-        my_bar(self.precision, "precision")
-        my_bar(self.FPR, "FPR")
-        my_bar(self.train_time, "training time")
-        my_bar(self.detection_time, "detection time")
+        my_bar(self.accurancy, "accurancy_kdd")
+        my_bar(self.precision, "precision_kdd")
+        my_bar(self.recall, "recall_kdd")
+        my_bar(self.FPR, "FPR_kdd")
+        my_bar(self.MCC, "MCC_kdd")
+        my_bar(self.train_time, "training time_kdd")
+        my_bar(self.detection_time, "detection time_kdd")
 
     def save_data(self):
-        performance = list(zip(self.accurancy, self.precision, self.FPR, self.detection_time, self.train_time))
-        header = ['accurancy', 'precision', 'FPR', 'detection time', 'train time']
-        file_path = Performance + "vae_ae_comp.csv"
+        performance = list(zip(self.accurancy, self.precision, self.recall, self.FPR, self.MCC, self.detection_time, self.train_time))
+        header = ['accurancy', 'precision', 'recall', 'FPR', 'MCC', 'detection time', 'train time']
+        file_path = Performance + "vae_ae_kdd_comp.csv"
         file = open(file=file_path, mode='w', newline='')
         writer = csv.writer(file, dialect='excel')
         writer.writerow(header)
@@ -87,7 +105,7 @@ class VAE_AE_test():
         file.close()
 
 def metric(index_label_prediction:list):
-    index, label, prediction = zip(*index_label_prediction)
+    index, label, prediction, _ = zip(*index_label_prediction)
     TP = 0.0001
     TN = 0.0001
     FP = 0.0001
@@ -104,15 +122,20 @@ def metric(index_label_prediction:list):
             else:
                 TN += 1
 
-    acc = (TP + TN) / (TP + FP + TN + FN)
+    N = TN + TP + FN + FP
+    acc = (TP + TN) / N
     pre = TP / (TP + FP)
+    recall = TP / (TP + FN)
     FTP = FP / (TN + FP)
 
-    return acc, pre, FTP
+    S = (TP + FN) / N
+    P = (TP + FP) / N
+    MCC = (TP/N-S*P)/math.sqrt(P*S*(1-S)*(1-P))
+    return acc, pre, recall, FTP, MCC
 
 def my_bar(y, name:str):
     bar_width = 0.1
-    x = [0.25, 0.5, 0.75]
+    x = [0.2, 0.4, 0.6]
     x_label = ['AE', 'VAE', 'VAE prob']
     plt.bar(x[0], height=y[0], width=bar_width, hatch='x', color='w', label="AE", edgecolor='k')
     plt.bar(x[1], height=y[1], width=bar_width, hatch='+', color='w', label="VAE", edgecolor='k')
