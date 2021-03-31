@@ -25,7 +25,7 @@ from other.path import Model
 # 数据集和损失函数是相关联的，所以必须对不同的损失函数（数据集）建立不同的trainer
 class VAE_Kdd99_trainer():
     def __init__(self, net, trainloader: DataLoader, testloader: DataLoader=None, epochs: int = 10, lr: float = 0.001,
-                  weight_decay: float = 1e-6, sample_num:int=10, quantile:float=0.9):
+                  weight_decay: float = 1e-6, sample_num:int=10):
         self.net = net
         self.trainloader = trainloader
         self.testloader = testloader
@@ -35,7 +35,6 @@ class VAE_Kdd99_trainer():
         self.weight_decay = weight_decay
         # 采样次数
         self.M = sample_num
-        self.quantile = quantile
 
         # 保存数据
         self.train_logger = init_log(Train_Log_Path, "VAE_KDD99")
@@ -122,14 +121,20 @@ class VAE_Kdd99_trainer():
                 # record the mu and var of each data to avoid computing again
                 mu_var_list = list(zip(mu, var))
                 mu_var.append(mu_var_list)
-
-        # mean mu and var of all normal data
+        """
+        # get the normal mu and var with mean
         self.train_mu = list_avrg(mu_list)
         self.train_var = list_avrg(var_list)
+        """
+        """
+        # get normal mean and var with median(按照tensor和计算中位数位置)
+        self.train_mu = list_median(mu_list)
+        self.train_var = list_median(var_list)
+        """
+        # get the mu and var with min
+        self.train_mu = list_min(mu_list)
+        self.train_var = list_min(var_list)
         self.train_loss = list_avrg(loss_list)
-
-        print("normal data mu:", mu_list)
-        print("normal data var:", var_list)
 
         # get threshold
         normaldata_prob = []
@@ -138,22 +143,21 @@ class VAE_Kdd99_trainer():
             for i in range(len(mu_batch)):
                 # 每个数据隐变量采样M个数据的概率mean
                 mu_each_data = mu_batch[i]
-                var_each_data = var_batch[i]
-                std_each_data = torch.sqrt(var_each_data)
-                eachdata_prob = prob_avrg(self.M, mu_each_data, std_each_data, self.train_mu, self.train_var)
+                # var_each_data = var_batch[i]
+                # std_each_data = torch.sqrt(var_each_data)
+                # eachdata_prob = prob_avrg(self.M, mu_each_data, std_each_data, self.train_mu, self.train_var)
+                eachdata_prob = prob(mu_each_data, self.train_mu, self.train_var)
                 normaldata_prob.append(eachdata_prob)
 
         self.threshold_mean = list_avrg(normaldata_prob)
-        self.threshold_quantile = np.quantile(normaldata_prob, self.quantile)
         self.get_param_time = time.time() - start_time
 
         self.train_logger.info("the threshold_mean is {}\n "
-                               "the threshold_quantile is {}\n"
                          "the mean of normal distribution is {}\n"
                          "the variance of normal distribution is {}\n"
                          "the loss of training data is {:.8f}\n"
                          "the using time of getting param is {:.3f}\n"
-                         .format(self.threshold_mean, self.threshold_quantile, self.train_mu, self.train_var, self.train_loss, self.get_param_time))
+                         .format(self.threshold_mean, self.train_mu, self.train_var, self.train_loss, self.get_param_time))
         self.train_logger.info("Finish getting parameters.")
 
     """
@@ -176,16 +180,20 @@ class VAE_Kdd99_trainer():
                 data = data.float()
                 # 如果batch为1，则以下变量对应一个数据的loss、mu、logvar
                 _, mu, logvar = self.net(data)
-                print("test data label:", label,
+                var = torch.exp(logvar)
+                print("test data label:", label.data,
                       "test data mu:", mu,
-                      "test data var:", torch.exp(logvar))
+                      "test data var:", var,
+                      "min mu:", torch.min(mu),
+                      "min var:", torch.min(var))
                 std = torch.exp(0.5 * logvar)
-                data_prob = prob_avrg(self.M, mu, std, self.train_mu, self.train_var)
+                # data_prob = prob_avrg(self.M, mu, std, self.train_mu, self.train_var)
+                data_prob = prob(mu, self.train_mu, self.train_var)
                 # 统计结果
                 prob_list.append(data_prob)
                 index_list.append(index)
                 label_list.append(label)
-                if data_prob < self.threshold_quantile:
+                if data_prob < self.threshold_mean:
                     prediction_list.append(1)# 异常
                 else:
                     prediction_list.append(0)# 正常
@@ -246,24 +254,34 @@ def list_avrg(list):
         sum += item
     return sum/len(list)
 
+# compute the median of data in list
+def list_median(list):
+    sum_tensor = []
+    for item in list:
+        tmp = torch.sum(item)
+        sum_tensor.append((tmp, item))
+
+    sort_tensor1 = sorted(sum_tensor, key=lambda x:x[0])
+    half = len(sort_tensor1) // 2
+    return (sort_tensor1[half][1] + sort_tensor1[~half][1]) / 2
+
+# compute the min of data in list
+def list_min(list):
+    sum_tensor = []
+    for item in list:
+        tmp = torch.sum(item)
+        sum_tensor.append((tmp, item))
+
+    sort_tensor1 = sorted(sum_tensor, key=lambda x: x[0])
+    return sort_tensor1[0][1]
+
 # compute the mean prob of M simples
-"""
-    input:  M: the number of sample(int); 
-            simple_mu: the mu of simple distribution(15-dim vector)
-            simple_std: the standard of simple distribution(15-dim vector)
-            nor_mu: the mu of normal distribution(15-dim vector)
-            nor_var:the standard of normal distribution(15-dim vector)
+""" 
+    input:  simple_mu: the mu of simple distribution(9-dim vector)
+            nor_mu: the mu of normal distribution(9-dim vector)
+            nor_var:the standard of normal distribution(9-dim vector)
     return: the mean probability of M samples  
 """
-def prob_avrg(M: int, simple_mu, simple_std, nor_mu, nor_var):
-    prob = 0.0
-    for i in range(M):
-        # get M simples
-        eps = torch.randn_like(simple_std)
-        z = simple_mu + eps * simple_std
-        # get prob
-        each_prob = multivariate_normal.pdf(z, nor_mu, np.diag(nor_var))
-        # compute the sum prob of M simples
-        prob += each_prob
-    prob = prob / M
+def prob(mu, nor_mu, nor_var):
+    prob = multivariate_normal.pdf(mu, nor_mu, np.diag(nor_var))
     return prob

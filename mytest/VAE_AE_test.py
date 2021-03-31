@@ -126,12 +126,12 @@ def metric(index_label_prediction:list):
     acc = (TP + TN) / N
     pre = TP / (TP + FP)
     recall = TP / (TP + FN)
-    FTP = FP / (TN + FP)
+    FPR = FP / (TN + FP)
 
     S = (TP + FN) / N
     P = (TP + FP) / N
     MCC = (TP/N-S*P)/math.sqrt(P*S*(1-S)*(1-P))
-    return acc, pre, recall, FTP, MCC
+    return acc, pre, recall, FPR, MCC
 
 def my_bar(y, name:str):
     bar_width = 0.1
