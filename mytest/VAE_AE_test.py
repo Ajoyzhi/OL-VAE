@@ -13,7 +13,7 @@ from optim.VAE_prob_KDD99_trainer import VAE_prob_KDD99_trainer
    no print
 """
 class VAE_AE_test():
-    def __init__(self, trainloader, testloader, ae_epoch, vae_epoch, vae_prob_epoch, ae_cluster_num, vae_sample_num, vae_prob_sample_num, vae_prob_alpha,
+    def __init__(self, trainloader, testloader, ae_epoch, vae_epoch, vae_prob_epoch, ae_cluster_num, vae_prob_sample_num, vae_prob_alpha,
                  lr:float=0.001, weight_decay:float=1e-6):
         self.trainloader = trainloader
         self.testloader = testloader
@@ -25,7 +25,6 @@ class VAE_AE_test():
         self.vae_prob_epoch = vae_prob_epoch
 
         self.ae_cluster_num = ae_cluster_num
-        self.vae_sample_num = vae_sample_num
 
         self.prob_sample_num = vae_prob_sample_num
         self.prob_alpha = vae_prob_alpha
@@ -57,7 +56,7 @@ class VAE_AE_test():
 
         # VAE
         vae_net = VAE_KDD99()
-        vae_trainer = VAE_Kdd99_trainer(vae_net, self.trainloader, self.testloader, self.vae_epoch, self.lr, self.weight_decay, self.vae_sample_num)
+        vae_trainer = VAE_Kdd99_trainer(vae_net, self.trainloader, self.testloader, self.vae_epoch, self.lr, self.weight_decay)
         vae_trainer.train()
         vae_trainer.get_normal_parm()
         vae_trainer.test()

@@ -25,7 +25,7 @@ from other.path import Model
 # 数据集和损失函数是相关联的，所以必须对不同的损失函数（数据集）建立不同的trainer
 class VAE_Kdd99_trainer():
     def __init__(self, net, trainloader: DataLoader, testloader: DataLoader=None, epochs: int = 10, lr: float = 0.001,
-                  weight_decay: float = 1e-6, sample_num:int=10):
+                  weight_decay: float = 1e-6):
         self.net = net
         self.trainloader = trainloader
         self.testloader = testloader
@@ -33,8 +33,6 @@ class VAE_Kdd99_trainer():
         self.lr = lr
         # L2正则化的系数
         self.weight_decay = weight_decay
-        # 采样次数
-        self.M = sample_num
 
         # 保存数据
         self.train_logger = init_log(Train_Log_Path, "VAE_KDD99")
@@ -126,15 +124,18 @@ class VAE_Kdd99_trainer():
         self.train_mu = list_avrg(mu_list)
         self.train_var = list_avrg(var_list)
         """
-        """
-        # get normal mean and var with median(按照tensor和计算中位数位置)
+
+        # get normal mean and var with median(按照tensor中位数计算中位数位置)
         self.train_mu = list_median(mu_list)
         self.train_var = list_median(var_list)
         """
-        # get the mu and var with min
+        # get the mu and var with min(按照ternsor中的最小值计算最小值的位置)
         self.train_mu = list_min(mu_list)
         self.train_var = list_min(var_list)
+        """
         self.train_loss = list_avrg(loss_list)
+        # print("mu_list:", mu_list)
+        # print("var_list:", var_list)
 
         # get threshold
         normaldata_prob = []
@@ -181,12 +182,14 @@ class VAE_Kdd99_trainer():
                 # 如果batch为1，则以下变量对应一个数据的loss、mu、logvar
                 _, mu, logvar = self.net(data)
                 var = torch.exp(logvar)
+                """
                 print("test data label:", label.data,
                       "test data mu:", mu,
                       "test data var:", var,
                       "min mu:", torch.min(mu),
                       "min var:", torch.min(var))
-                std = torch.exp(0.5 * logvar)
+                """
+                # std = torch.exp(0.5 * logvar)
                 # data_prob = prob_avrg(self.M, mu, std, self.train_mu, self.train_var)
                 data_prob = prob(mu, self.train_mu, self.train_var)
                 # 统计结果
@@ -247,7 +250,7 @@ def loss_function(recon_x, x, mu, logvar):
     KLD = -0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp())
     return MSE + KLD, var
 
-# compute the mean of data in list
+# compute the mean of data in list composing with tensor
 def list_avrg(list):
     sum = 0
     for item in list:
@@ -255,27 +258,35 @@ def list_avrg(list):
     return sum/len(list)
 
 # compute the median of data in list
+def get_list_median(list):
+    sort_list = sorted(list)
+    half = len(sort_list) // 2
+    return (sort_list[half] + sort_list[~half]) / 2
+
+# compute the median of data in list composing with tensor
 def list_median(list):
     sum_tensor = []
     for item in list:
-        tmp = torch.sum(item)
+        tmp = get_list_median(item.tolist())
         sum_tensor.append((tmp, item))
 
     sort_tensor1 = sorted(sum_tensor, key=lambda x:x[0])
     half = len(sort_tensor1) // 2
     return (sort_tensor1[half][1] + sort_tensor1[~half][1]) / 2
 
-# compute the min of data in list
+# compute the min of data in list composing with tensor
 def list_min(list):
     sum_tensor = []
     for item in list:
-        tmp = torch.sum(item)
+        tmp = torch.min(abs(item))
+        # tmp = torch.sum(item)
         sum_tensor.append((tmp, item))
 
     sort_tensor1 = sorted(sum_tensor, key=lambda x: x[0])
+    # print("sort_tensor1:", sort_tensor1)
     return sort_tensor1[0][1]
 
-# compute the mean prob of M simples
+# compute the prob
 """ 
     input:  simple_mu: the mu of simple distribution(9-dim vector)
             nor_mu: the mu of normal distribution(9-dim vector)
