@@ -1,6 +1,7 @@
 from torch.utils.data import Dataset
 from other import path
 from .util import Util
+import numpy as np
 
 """
     1.__init__中实现对数据按比例选择和标准化，可以选择实现对数据的数值化和特征选择
@@ -11,10 +12,11 @@ from .util import Util
     3.__len__实现对数据集大小的获取
 """
 class Kdd99Dataset(Dataset):
-    def __init__(self, ratio: float, isTrain: bool, preprocess: bool):
+    def __init__(self, ratio: float, isTrain: bool, preprocess: bool, loadData: bool, FEATURE:int=9):
         # 1. Initialize file path or list of file names.
         self.ratio = ratio
         self.isTrain = isTrain
+        self.loadData = loadData
 
         if self.isTrain:
             self.src_path = path.Train_Src_Path
@@ -27,20 +29,26 @@ class Kdd99Dataset(Dataset):
             self.feature_path = path.Test_Feature_Path
             self.des_path = path.Test_Des_Path
 
-        self.util = Util(src_path=self.src_path,
-                    number_path=self.number_path,
-                    feature_path=self.feature_path,
-                    des_path=self.des_path,
-                    ratio=self.ratio,
-                    isTrain=self.isTrain)
+        # get data from the destination_path(train\test)
+        if self.loadData:
+            data_label = np.loadtxt(self.des_path, dtype=float, delimiter=",", skiprows=0)
+            temp_data = np.hsplit(data_label, (FEATURE, FEATURE + 1))
+            self.data = temp_data[0]
+            self.label = temp_data[1]
+        else:
+            self.util = Util(src_path=self.src_path,
+                        number_path=self.number_path,
+                        feature_path=self.feature_path,
+                        des_path=self.des_path,
+                        ratio=self.ratio,
+                        isTrain=self.isTrain)
+            if preprocess:
+                self.preprocess()
+            # 按比例获取数据
+            self.util.normalizations()
 
-        if preprocess:
-            self.preprocess()
-        # 按比例获取数据
-        self.util.normalizations()
-
-        self.data = self.util.data
-        self.label = self.util.label
+            self.data = self.util.data
+            self.label = self.util.label
 
     def __getitem__(self, index):
         # 1. Read one data from file (e.g. using numpy.fromfile, PIL.Image.open).

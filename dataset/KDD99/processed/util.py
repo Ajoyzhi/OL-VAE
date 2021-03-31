@@ -2,7 +2,7 @@ import numpy as np
 import csv
 
 class Util():
-    def __init__(self, src_path, number_path, feature_path, des_path, ratio: float, isTrain, FEATURES: int = 9):
+    def __init__(self, src_path, number_path, feature_path, des_path, ratio: float, isTrain: bool, FEATURES: int = 9):
         self.src_path = src_path
         self.number_path = number_path
         self.feature_path = feature_path
