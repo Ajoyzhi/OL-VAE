@@ -1,12 +1,12 @@
 # -*- coding: utf-8 -*-
 import socket
+import math
 import time
 import random
 import os
 import socket
 import struct
 import array
-import logging
 from threading import Thread
 from random import randint
 from scapy.all import *
@@ -23,33 +23,11 @@ TCP_address = (TCP_server_ip, TCP_server_port)
 UDP_server_ip = "10.0.0.10"
 UDP_server_port = 9012
 UDP_address = (UDP_server_ip, UDP_server_port)
-LOG_PATH = "/home/ajoy/Ajoy_data/ddos.log"
 # ON/OFF model param
 alpha_ON = 1.5
 alpha_OFF = 1.5
 beta_ON = 1
 beta_OFF = 1
-
-def init_log(log_path):
-    # real_time = time.strftime('%Y-%m-%d-%H-%M-%S', time.localtime(time.time()))
-    logger = logging.getLogger()
-    logger.setLevel(logging.DEBUG)
-    
-    consoleHandler = logging.StreamHandler()
-    consoleHandler.setLevel(logging.DEBUG)
-
-    fileHandler = logging.FileHandler(log_path, mode='w', encoding='UTF-8')
-    fileHandler.setLevel(logging.NOTSET)
-    
-    formatter = logging.Formatter('%(asctime)s - %(message)s')
-    consoleHandler.setFormatter(formatter)
-    fileHandler.setFormatter(formatter)
-
-    logger.addHandler(consoleHandler)
-    logger.addHandler(fileHandler)
-    return logger
-
-logger = init_log(LOG_PATH)
 
 class Pinger(object):
     def __init__(self, timeout=3):
@@ -210,23 +188,21 @@ def ping(host_num, packet_num, random_source=True):
         else:
             ping_sendone(host, random_source=False)
 
-    logger.info("ending ping attack.")
-
 
 if __name__ == '__main__':
     host_num = 15
-    t_tcp = Thread(target=send_tcp, args=(3000,))
+    t_tcp = Thread(target=send_tcp, args=(20000,))
     t_tcp.start()
-    t_udp = Thread(target=send_udp, args=(150,))
+    t_udp = Thread(target=send_udp, args=(1000,))
     t_udp.start()
-    t_icmp = Thread(target=send_icmp, args=(3, host_num))
+    t_icmp = Thread(target=send_icmp, args=(20, host_num))
     t_icmp.start()
 
-    t_ping1 = Thread(target=ping, args=(host_num, 1000,))
-    t_ping2 = Thread(target=ping, args=(host_num, 500,))
+    t_ping1 = Thread(target=ping, args=(host_num, 5000,))
+    t_ping2 = Thread(target=ping, args=(host_num, 5000,))
     # after 1hours generating normal data, begin attack
     time.sleep(3600)
-    logger.info("starting ping attack.")
+    print("starting ping attack.")
     t_ping1.start()
     t_ping2.start()
 

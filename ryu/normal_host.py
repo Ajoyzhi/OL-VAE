@@ -153,11 +153,11 @@ def send_icmp(packet_num, host_num):
 
 if __name__ == '__main__':
     host_num = 15
-    t_tcp = Thread(target=send_tcp, args=(3000,))
+    t_tcp = Thread(target=send_tcp, args=(30000,))
     t_tcp.start()
-    t_udp = Thread(target=send_udp, args=(150,))
+    t_udp = Thread(target=send_udp, args=(1500,))
     t_udp.start()
-    t_icmp = Thread(target=send_icmp, args=(3, host_num))
+    t_icmp = Thread(target=send_icmp, args=(30, host_num))
     t_icmp.start()
 
     if not t_tcp.is_alive():

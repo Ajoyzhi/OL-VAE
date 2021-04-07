@@ -49,7 +49,6 @@ class Ajoy_monitor(simple_switch_13.SimpleSwitch13):
         self.port_path_pre = "/home/ajoy/Ajoy_data/"
         self.fe_path_pre = "/home/ajoy/Ajoy_data/"
 
-
     @set_ev_cls(ofp_event.EventOFPStateChange, [MAIN_DISPATCHER, DEAD_DISPATCHER])
     def _state_change_handler(self, ev):
         datapath = ev.datapath
@@ -67,32 +66,29 @@ class Ajoy_monitor(simple_switch_13.SimpleSwitch13):
         while True:
             for dp in self.datapaths.values():
                 self._request_stats(dp)
-            # after  getting all the data, putting them into file
-
             # save flow entry data
             self.save_flow_entry_data()
-	    # save port status
+            # save port status
             self.save_port_data()
-
-	    # clear the fe_list
-	    self.fe_time = []
+            # clear the fe_list
+            self.fe_time = []
             self.fe_datapath = []
             self.in_port = []
             self.dst_mac = []
             self.packets_count = []
             self.bytes_count = []
-	    self.fe_echo_delay = []
+            self.fe_echo_delay = []
 
-	    # clear the port list
-	    self.port_time = []
+            # clear the port list
+            self.port_time = []
             self.port_datapath = []
             self.port = []
             self.rx_packets = []
             self.rx_bytes = []
             self.tx_packets = []
             self.tx_bytes = []
-	    self.port_echo_delay = []
-	    hub.sleep(30)
+            self.port_echo_delay = []
+            hub.sleep(30)
 
     def _request_stats(self, datapath):
         self.logger.debug('send stats request: %016x', datapath.id)
@@ -198,13 +194,13 @@ class Ajoy_monitor(simple_switch_13.SimpleSwitch13):
         # flow entry data
         flow_entry_data = zip(self.fe_time, self.fe_datapath, self.in_port, self.dst_mac, self.packets_count, self.bytes_count, self.fe_echo_delay)
         # flow_entry_header = ['time', 'datapath', 'in_port', 'dst_mac', 'packets_count', 'bytes_count', 'delay']
-	for dp in self.datapaths:
-	    fe_path = self.fe_path_pre + "s" + str(dp) + "_fe.csv"
-	    fe_file = open(fe_path, 'a')
+        for dp in self.datapaths:
+            fe_path = self.fe_path_pre + "s" + str(dp) + "_fe.csv"
+            fe_file = open(fe_path, 'a')
             fe_writer = csv.writer(fe_file, dialect='excel')
-	    for item in flow_entry_data:
-		if item[1] == dp:
-		    fe_writer.writerow(item)
+            for item in flow_entry_data:
+                if item[1] == dp:
+                    fe_writer.writerow(item)
             fe_file.close()
         
     def save_port_data(self):
@@ -214,11 +210,11 @@ class Ajoy_monitor(simple_switch_13.SimpleSwitch13):
         # port status
         port_data = zip(self.port_time, self.port_datapath, self.port, self.rx_packets, self.rx_bytes, self.tx_packets, self.tx_bytes, self.port_echo_delay)
         # port_header = ['time', 'datapath', 'port', 'rx_packets', 'rx_bytes', 'tx_packets', 'tx_bytes', 'delay']
-	for dp in self.datapaths:
-	    port_path = self.port_path_pre + "s" + str(dp) + "_port.csv"
+        for dp in self.datapaths:
+            port_path = self.port_path_pre + "s" + str(dp) + "_port.csv"
             port_file = open(port_path, 'a')
             port_writer = csv.writer(port_file, dialect='excel')
             for item in port_data:
-		if item[1] == dp:
+                if item[1] == dp:
                     port_writer.writerow(item)
             port_file.close()

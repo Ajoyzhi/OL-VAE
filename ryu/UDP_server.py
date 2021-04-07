@@ -47,4 +47,4 @@ if __name__ == '__main__':
         # reply data
         send_data = 'UDP' + time.strftime('%Y-%m-%d-%H-%M-%S', time.localtime(time.time()))
         udp_server_socket.sendto(send_data.encode("utf-8"), client_addr)
-	# logger.info("UDP server reply data:[%s]" % send_data)
+        # logger.info("UDP server reply data:[%s]" % send_data)
