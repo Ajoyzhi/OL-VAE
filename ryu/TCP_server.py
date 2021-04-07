@@ -1,7 +1,8 @@
 import socket
 import time
 import logging
-
+import os
+import threading 
 
 """
     run TCP server
@@ -17,6 +18,7 @@ SOCKETS = []
 CLIENTS = []
 
 def init_log(log_path):
+    real_time = time.strftime('%Y-%m-%d-%H-%M-%S', time.localtime(time.time()))
     logger = logging.getLogger()
     logger.setLevel(logging.DEBUG)
     
