@@ -5,9 +5,9 @@ from mytest.VAE_AE_test import metric
 
 # 测试kdd99的数值化处理
 # trainer data：97278； test_data：正常60593 异常223289
-kdd99_train_loader = KDD99_Loader(ratio=0.01, isTrain=True, preprocess=False, loadData=True,
+kdd99_train_loader = KDD99_Loader(ratio=0.01, isTrain=True, preprocess=False, loadData=False,
                                   batch_size=128, shuffle=False, num_workers=0).loader
-kdd99_test_loader = KDD99_Loader(ratio=0.001, isTrain=False, preprocess=False,loadData=True,
+kdd99_test_loader = KDD99_Loader(ratio=0.001, isTrain=False, preprocess=False,loadData=False,
                                  batch_size=1, shuffle=False, num_workers=0).loader
 # 创建kdd99_VAE_Guass网络结构
 kdd99_vae = VAE_KDD99()

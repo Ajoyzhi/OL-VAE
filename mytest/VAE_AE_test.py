@@ -84,13 +84,13 @@ class VAE_AE_test():
         self.MCC.append(MCC)
 
     def my_plot(self):
-        my_bar(self.accurancy, "accurancy_kdd")
-        my_bar(self.precision, "precision_kdd")
-        my_bar(self.recall, "recall_kdd")
-        my_bar(self.FPR, "FPR_kdd")
-        my_bar(self.MCC, "MCC_kdd")
-        my_bar(self.train_time, "training time_kdd")
-        my_bar(self.detection_time, "detection time_kdd")
+        my_bar(self.accurancy, "accurancy")
+        my_bar(self.precision, "precision")
+        my_bar(self.recall, "recall")
+        my_bar(self.FPR, "FPR")
+        my_bar(self.MCC, "MCC")
+        my_bar(self.train_time, "training time")
+        my_bar(self.detection_time, "detection time")
 
     def save_data(self):
         performance = list(zip(self.accurancy, self.precision, self.recall, self.FPR, self.MCC, self.detection_time, self.train_time))
@@ -136,9 +136,10 @@ def my_bar(y, name:str):
     bar_width = 0.1
     x = [0.2, 0.4, 0.6]
     x_label = ['AE', 'VAE', 'VAE prob']
+    # {'/', '\', '|', '-', '+', 'x', 'o', 'O', '.', '*'}
     plt.bar(x[0], height=y[0], width=bar_width, hatch='x', color='w', label="AE", edgecolor='k')
-    plt.bar(x[1], height=y[1], width=bar_width, hatch='+', color='w', label="VAE", edgecolor='k')
-    plt.bar(x[2], height=y[2], width=bar_width, hatch='*', color='w', label="VAE prob", edgecolor='k')
+    plt.bar(x[1], height=y[1], width=bar_width, hatch='/', color='w', label="VAE", edgecolor='k')
+    plt.bar(x[2], height=y[2], width=bar_width, hatch='.', color='w', label="VAE prob", edgecolor='k')
     plt.xticks(x, x_label)
     plt.xlim((0.0, 1.0))
     plt.ylabel(name)
