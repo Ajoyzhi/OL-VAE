@@ -103,9 +103,11 @@ def UDP_client():
     udp_socket.close()
     return send_bytes + recv_bytes
 
-def send_tcp(packet_num):
+def send_tcp(packet_num, running_time):
     all_send_packet = 0
-    while all_send_packet < packet_num:
+    start_time = time.time()
+    end_time = time.time()
+    while all_send_packet < packet_num and (end_time - start_time) < running_time:
         u = random.uniform(0.0001, 1) # 产生(0,1)均匀分布
         send_packet = int(beta_ON / (math.pow(u, 1 / alpha_ON)))
         sleep_time = beta_OFF / (math.pow(u, 1 / alpha_OFF))
@@ -117,10 +119,13 @@ def send_tcp(packet_num):
         all_send_packet += send_packet
         # 每次ON/OFF模型结束，休息2s
         time.sleep(2)
+        end_time = time.time()
 
-def send_udp(packet_num):
+def send_udp(packet_num, running_time):
     all_send_packet = 0
-    while all_send_packet < packet_num:
+    start_time = time.time()
+    end_time = time.time()
+    while all_send_packet < packet_num and (end_time - start_time) < running_time:
         u = random.uniform(0.0001, 1) # 产生(0,1)均匀分布
         send_packet = int(beta_ON / (math.pow(u, 1 / alpha_ON)))
         sleep_time = beta_OFF / (math.pow(u, 1 / alpha_OFF))
@@ -131,10 +136,13 @@ def send_udp(packet_num):
         time.sleep(sleep_time)
         all_send_packet += send_packet
         time.sleep(40)
+        end_time = time.time()
 
-def send_icmp(packet_num, host_num):
+def send_icmp(packet_num, host_num, running_time):
     all_send_packet = 0
-    while all_send_packet < packet_num:
+    start_time = time.time()
+    end_time = time.time()
+    while all_send_packet < packet_num and (end_time - start_time) < running_time:
         u = random.uniform(0.0001, 1) # 产生(0,1)均匀分布
         send_packet = int(beta_ON / (math.pow(u, 1 / alpha_ON)))
         sleep_time = beta_OFF / (math.pow(u, 1 / alpha_OFF))
@@ -150,14 +158,16 @@ def send_icmp(packet_num, host_num):
         time.sleep(sleep_time)
         all_send_packet += send_packet
         time.sleep(2000)
+        end_time = time.time()
 
 if __name__ == '__main__':
+    # 运行5小时
     host_num = 15
-    t_tcp = Thread(target=send_tcp, args=(30000,))
+    t_tcp = Thread(target=send_tcp, args=(30000,18000))
     t_tcp.start()
-    t_udp = Thread(target=send_udp, args=(1500,))
+    t_udp = Thread(target=send_udp, args=(1500,18000))
     t_udp.start()
-    t_icmp = Thread(target=send_icmp, args=(30, host_num))
+    t_icmp = Thread(target=send_icmp, args=(30, host_num, 18000))
     t_icmp.start()
 
     if not t_tcp.is_alive():

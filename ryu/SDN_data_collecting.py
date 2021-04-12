@@ -113,6 +113,7 @@ class Ajoy_monitor(simple_switch_13.SimpleSwitch13):
     # get flow entry statistic
     @set_ev_cls(ofp_event.EventOFPFlowStatsReply, MAIN_DISPATCHER)
     def _flow_stats_reply_handler(self, ev):
+        real_time = time.strftime('%Y-%m-%d-%H-%M-%S', time.localtime(time.time()))
         body = ev.msg.body
         self.logger.info('datapath         '
                          'in-port eth-dst           '
@@ -142,7 +143,6 @@ class Ajoy_monitor(simple_switch_13.SimpleSwitch13):
                         datapath, in_port, eth_dst, out_port, packets_count, bytes_count)
 
             # get data datapath, src_mac(in_port), dst_mac, packets_count, bytes_count
-            real_time = time.strftime('%Y-%m-%d-%H-%M-%S', time.localtime(time.time()))
             self.fe_time.append(real_time)
             self.fe_datapath.append(datapath)
             self.in_port.append(in_port)
@@ -153,6 +153,7 @@ class Ajoy_monitor(simple_switch_13.SimpleSwitch13):
     # get port stats
     @set_ev_cls(ofp_event.EventOFPPortStatsReply, MAIN_DISPATCHER)
     def _port_stats_reply_handler(self, ev):
+        real_time = time.strftime('%Y-%m-%d-%H-%M-%S', time.localtime(time.time()))
         body = ev.msg.body
         self.logger.info('datapath         port     '
                          'rx-pkts  rx-bytes rx-error '
@@ -166,7 +167,6 @@ class Ajoy_monitor(simple_switch_13.SimpleSwitch13):
                              stat.rx_packets, stat.rx_bytes, stat.rx_errors,
                              stat.tx_packets, stat.tx_bytes, stat.tx_errors)
             # get (real_time, datapath, port, rx_packets, rx_byte, tx_packets, tx_byte)
-            real_time = time.strftime('%Y-%m-%d-%H-%M-%S', time.localtime(time.time()))
             self.port_time.append(real_time)
             self.port_datapath.append(ev.msg.datapath.id)
             self.port.append(stat.port_no)
