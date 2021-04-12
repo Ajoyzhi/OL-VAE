@@ -1,5 +1,5 @@
 import torch
-
+import numpy as np
 """
 # compute the median of data in list composing with tensor
 def list_median(list):
@@ -15,6 +15,7 @@ def list_median(list):
     print("list[half]：", sort_tensor1[half][1])
     print("list[~half]：", sort_tensor1[~half][1])
     return (sort_tensor1[half][1] + sort_tensor1[~half][1]) / 2
+"""
 """
 # compute the min of data in list composing with tensor
 def list_min(list):
@@ -46,3 +47,9 @@ list.append(tensor6)
 #tensorx = list_median(list)
 tensorx = list_min(list)
 print("tensorx:", tensorx)
+"""
+# test np.insert
+x = np.arange(6)
+print("origin_x:", x)
+x = np.insert(x, 2, [0.0,1,2,3,4,5,6])
+print("x", x)

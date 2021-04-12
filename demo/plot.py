@@ -1,9 +1,13 @@
+# _*_ coding:utf-8 _*_
 import torch
 import matplotlib.pyplot as plt
 from other.path import Picture
 from matplotlib import font_manager
 import numpy as np
 
+from mytest.VAE_AE_test import my_bar
+import csv
+"""
 PI = 3.141592657
 # 数据
 x = torch.unsqueeze(torch.linspace(-10, 10, 500), dim=1)
@@ -17,6 +21,7 @@ print(a.data.shape)
 # test range()
 for i in range(1, 10):
     print(i)
+"""
 """
 # test plot
 def my_plot(org_data, online_data, name: str):
@@ -43,6 +48,7 @@ plt.xticks(x_data, x_label)
 plt.legend()
 plt.show()
 """
+"""
 # test figure
 # 创建画布
 fig1 = plt.figure('Figure1',figsize = (6,4)).add_subplot(111)
@@ -58,3 +64,32 @@ fig1.set_xlabel('This is x axis')
 fig1.set_ylabel('This is y axis')
 
 plt.show()
+"""
+# plot
+# read data from the file
+file_path = "F:/vae_ae_kdd_comp.csv"
+# accurancy	precision	recall	FPR	MCC	detection time	train time
+data = np.loadtxt(file_path, dtype=float, delimiter=",", skiprows=0)
+print("data:", data)
+
+acc = data[:, 0]
+pre = data[:, 1]
+recall = data[:, 2]
+FPR = data[:, 3]
+MCC= data[:, 4]
+detect_time = data[:, 5]
+train_time = data[:, 6]
+print("acc:", acc,
+      "pre:", pre,
+      "recall:", recall,
+      "FPR:", FPR,
+      "MCC:", MCC,
+      "detection time:", detect_time,
+      "train_time:", train_time)
+my_bar(acc, "accurancy")
+my_bar(pre, "precision")
+my_bar(recall, "recall")
+my_bar(FPR, "FPR")
+my_bar(MCC, 'MCC')
+my_bar(detect_time, "detection time")
+my_bar(train_time, "train time")
