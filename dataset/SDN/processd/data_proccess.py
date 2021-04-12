@@ -1,6 +1,16 @@
+"""
+    compute packet_rate and bytes_rate in fe
+    compute rx_prate, rx_brate, tx_prate and tx_brate in port
+"""
 import csv
 import numpy as np
 
+"""
+    src_fe_path:fe raw data path
+    dst_fe_path:fe data with computing rate
+    src_port_path：port raw data path
+    dst_port_path：port data with computing rate
+"""
 class dataprocess():
     def __init__(self, src_fe_path:str, dst_fe_path:str, src_port_path:str, dst_port_path:str):
         self.src_fe_path = src_fe_path
@@ -14,8 +24,8 @@ class dataprocess():
 
         # 数据的处理逻辑
         self._load_data()   # 加载数据，初始化array
-        self.fe_list = self._slice_by_time(self.fe_array)   # 将数据按照时间分片
-        self.port_list = self._slice_by_time(self.port_array)
+        self.fe_list = slice_by_time(self.fe_array)   # 将数据按照时间分片
+        self.port_list = slice_by_time(self.port_array)
         self._compute_rate_save()   # 计算增速，并输出到文件中
 
     def _load_data(self):
@@ -36,24 +46,6 @@ class dataprocess():
         # tx_byte_rate
         self.port_array = np.insert(port_array, 10, 0.0, axis=1)
 
-    def _slice_by_time(self, array):
-        list = []
-        tmp = []
-        row = array.shape[0]
-        # 按照时间划分簇
-        for i in range(row):
-            if i + 1 < row:
-                # 比较相邻行的（time）
-                if array[i][0] == array[i + 1][0]:
-                    tmp.append(array[i])
-                else:
-                    tmp.append(array[i])
-                    list.append(tmp)
-                    tmp = []
-            else:
-                tmp.append(array[i])
-                list.append(tmp)
-        return list
 
     def _compute_rate_save(self):
         # fe(time, dp, inport, dst_mac, packets_count, bytes_count, packets_rate, bytes_rate, delay)
@@ -102,6 +94,25 @@ class dataprocess():
                 output_file(self.dst_port_path, tmp1)
             output_file(self.dst_port_path, tmp2)
 
+def slice_by_time(array):
+    list = []
+    tmp = []
+    row = array.shape[0]
+    # 按照时间划分簇
+    for i in range(row):
+        if i + 1 < row:
+            # 比较相邻行的（time）
+            if array[i][0] == array[i + 1][0]:
+                tmp.append(array[i])
+            else:
+                tmp.append(array[i])
+                list.append(tmp)
+                tmp = []
+        else:
+            tmp.append(array[i])
+            list.append(tmp)
+    return list
+
 # 输出到文件
 def output_file(file_path, data):
     file = open(file_path, mode='a', newline='')
@@ -109,3 +120,4 @@ def output_file(file_path, data):
     for item in data:
         csvwriter.writerow(item)
     file.close()
+
