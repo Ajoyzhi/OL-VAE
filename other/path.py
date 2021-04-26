@@ -25,9 +25,6 @@ Picture = '../other/pictures/'
 # acc pre FPR detection_time train_time
 Performance = '../other/performance/'
 
-# 网络参数保存位置
-Model = '../other/'
-
 # SDN data local(src:raw data;dst:comput the increse rate)
 raw_root = '../dataset/SDN/raw/rawraw/'
 pro_root = '../dataset/SDN/raw/'

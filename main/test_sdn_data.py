@@ -5,8 +5,8 @@ from dataset.SDN.processd.SDN_dataloader import sdnDataloader
 from other.path import pro_root, raw_root
 import glob
 
-switch_num = 1
-""" compute rate
+switch_num = 5
+# compute rate
 for j in range(switch_num):
     i = j + 1
     fe_src = raw_root + "s" + str(i) + "_fe.csv"
@@ -38,6 +38,7 @@ for j in range(switch_num):
                slice_path=slice)
     u.pro_data()
     u.slice_data()
+
 """
 # test sdnloader---each switch hs a VAE model
 for j in range(switch_num):
@@ -54,3 +55,4 @@ for j in range(switch_num):
         for item in sdndataloader:
             data, id, index = item
             print("data:", data, "id:", id, "index:", index)
+"""

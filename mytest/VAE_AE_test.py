@@ -135,15 +135,15 @@ def metric(index_label_prediction:list):
 def my_bar(y, name:str):
     bar_width = 0.1
     x = [0.2, 0.4, 0.6]
-    x_label = ['AE', 'VAE', 'VAE prob']
+    x_label = ['AE', 'OC-VAE', 'VAE-prob']
     # {'/', '\', '|', '-', '+', 'x', 'o', 'O', '.', '*'}
     plt.bar(x[0], height=y[0], width=bar_width, hatch='x', color='w', label="AE", edgecolor='k')
-    plt.bar(x[1], height=y[1], width=bar_width, hatch='/', color='w', label="VAE", edgecolor='k')
-    plt.bar(x[2], height=y[2], width=bar_width, hatch='.', color='w', label="VAE prob", edgecolor='k')
+    plt.bar(x[1], height=y[1], width=bar_width, hatch='/', color='w', label="OC-VAE", edgecolor='k')
+    plt.bar(x[2], height=y[2], width=bar_width, hatch='.', color='w', label="VAE-prob", edgecolor='k')
     plt.xticks(x, x_label)
     plt.xlim((0.0, 1.0))
     plt.ylabel(name)
-    plt.title(name + ' of AE, VAE and VAE prob')
+    plt.title(name + ' of AE, OC-VAE and VAE-prob')
     plt.legend(loc="upper right")
     # save the figure
     plt.savefig(Picture + name + ".jpg")

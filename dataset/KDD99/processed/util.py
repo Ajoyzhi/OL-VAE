@@ -67,11 +67,11 @@ class Util():
                 buffer_line[2] = temp_line[22]  # count
                 buffer_line[3] = temp_line[23]  # srv_count
                 buffer_line[4] = temp_line[30]  # srv_diff_host_rate
-                buffer_line[5] = temp_line[31] # dst_host_count
-                buffer_line[6] = temp_line[32] # dst_host_srv_count
-                buffer_line[7] = temp_line[36] # dst_host_src_diff_host_rate
+                buffer_line[5] = temp_line[31]  # dst_host_count
+                buffer_line[6] = temp_line[32]  # dst_host_srv_count
+                buffer_line[7] = temp_line[36]  # dst_host_src_diff_host_rate
                 buffer_line[8] = temp_line[0]   # duration
-                buffer_line[9] = temp_line[41] # label
+                buffer_line[9] = temp_line[41]  # label
                 # 将选择好的数据行输出到文件中
                 csv_writer.writerow(buffer_line)
         data_file.close()
